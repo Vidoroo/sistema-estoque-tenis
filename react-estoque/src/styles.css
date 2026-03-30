@@ -1,0 +1,105 @@
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+/* LIGHT MODE */
+body {
+  background: #f4f6f8;
+  color: #1e293b;
+}
+
+/* DARK MODE */
+body.dark {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* NAVBAR */
+nav {
+  background: #2563eb;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+body.dark nav {
+  background: #1e293b;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+nav a:hover {
+  opacity: 0.8;
+}
+
+/* CONTAINER */
+.container {
+  padding: 20px;
+}
+
+/* CARDS */
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+body.dark .card {
+  background: #1e293b;
+}
+
+/* INPUTS */
+input, select {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+body.dark input,
+body.dark select {
+  background: #0f172a;
+  color: white;
+  border: 1px solid #334155;
+}
+
+/* BOTÕES */
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* ERRO */
+.erro {
+  color: red;
+  margin-top: 10px;
+}
+
+/* LISTAS */
+ul {
+  margin-top: 15px;
+}
+
+li {
+  margin-bottom: 8px;
+}
