@@ -5,6 +5,7 @@ import { Produtos } from "./pages/Produtos";
 import { Estoque } from "./pages/Estoque";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import CadastroProduto from "./pages/CadastroProduto";
 import { PrivateRoute } from "./components/PrivateRoute";
 
 function App() {
@@ -15,16 +16,48 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         <Route
-          path="/*"
+          path="/"
           element={
             <PrivateRoute>
               <>
                 <Navbar />
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/produtos" element={<Produtos />} />
-                  <Route path="/estoque" element={<Estoque />} />
-                </Routes>
+                <Home />
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/produtos"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <Produtos />
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/estoque"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <Estoque />
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/cadastro-produto"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <CadastroProduto />
               </>
             </PrivateRoute>
           }

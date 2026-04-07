@@ -6,5 +6,11 @@ type Props = {
 };
 
 export function PrivateRoute({ children }: Props) {
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" />;
+  const autenticado = isAuthenticated();
+
+  if (!autenticado) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
 }

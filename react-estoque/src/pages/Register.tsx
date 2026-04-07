@@ -3,10 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../services/auth";
 
 export function Register() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [erro, setErro] = useState("");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [erro, setErro] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+
   const navigate = useNavigate();
 
   async function handleRegister() {
@@ -23,11 +25,16 @@ export function Register() {
     }
 
     try {
+      setLoading(true);
+
       await registerUser(username.trim(), password);
+
       alert("Cadastro realizado com sucesso.");
       navigate("/login");
     } catch (error: any) {
       setErro(error.message || "Erro ao cadastrar usuário.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -37,10 +44,11 @@ export function Register() {
         <h2>Cadastrar Usuário</h2>
 
         <input
-          type="text"
-          placeholder="Usuário"
+          type="email"
+          placeholder="Email"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          disabled={loading}
         />
 
         <input
@@ -48,6 +56,7 @@ export function Register() {
           placeholder="Senha"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
         />
 
         <input
@@ -55,6 +64,7 @@ export function Register() {
           placeholder="Confirmar senha"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          disabled={loading}
         />
 
         <div className="password-hint">
@@ -64,7 +74,9 @@ export function Register() {
 
         {erro && <p className="erro-texto">{erro}</p>}
 
-        <button onClick={handleRegister}>Cadastrar</button>
+        <button onClick={handleRegister} disabled={loading}>
+          {loading ? "Cadastrando..." : "Cadastrar"}
+        </button>
 
         <p className="auth-link-text">
           Já tem conta? <Link to="/login">Entrar</Link>

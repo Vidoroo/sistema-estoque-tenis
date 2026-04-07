@@ -1,24 +1,10 @@
-import bcrypt from "bcryptjs";
+const API_URL = "http://127.0.0.1:5000/api";
 
-type User = {
-  username: string;
-  passwordHash: string;
-};
-
-const USERS_KEY = "users";
 const AUTH_KEY = "auth";
 const CURRENT_USER_KEY = "currentUser";
 const LOGIN_ATTEMPTS_KEY = "loginAttempts";
 const LOCK_UNTIL_KEY = "lockUntil";
-
-function getUsers(): User[] {
-  const data = localStorage.getItem(USERS_KEY);
-  return data ? JSON.parse(data) : [];
-}
-
-function saveUsers(users: User[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
+const USER_DATA_KEY = "userData";
 
 function getLoginAttempts() {
   return Number(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || "0");
@@ -40,6 +26,7 @@ export function getLockInfo() {
   if (lockUntil && now < lockUntil) {
     const remainingMs = lockUntil - now;
     const remainingSeconds = Math.ceil(remainingMs / 1000);
+
     return {
       locked: true,
       remainingSeconds,
@@ -85,27 +72,27 @@ export function validateStrongPassword(password: string) {
 }
 
 export async function registerUser(username: string, password: string) {
-  const users = getUsers();
-
-  const exists = users.some(
-    (user) => user.username.toLowerCase() === username.toLowerCase()
-  );
-
-  if (exists) {
-    throw new Error("Usuário já cadastrado.");
-  }
-
   validateStrongPassword(password);
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const response = await fetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: username,
+      email: username,
+      password,
+    }),
+  });
 
-  const newUser: User = {
-    username,
-    passwordHash,
-  };
+  const data = await response.json();
 
-  users.push(newUser);
-  saveUsers(users);
+  if (!data.success) {
+    throw new Error(data.message || "Erro ao cadastrar usuário.");
+  }
+
+  return data;
 }
 
 export async function loginUser(username: string, password: string) {
@@ -117,48 +104,46 @@ export async function loginUser(username: string, password: string) {
     );
   }
 
-  const users = getUsers();
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: username,
+      password,
+    }),
+  });
 
-  const user = users.find(
-    (u) => u.username.toLowerCase() === username.toLowerCase()
-  );
+  const data = await response.json();
 
-  if (!user) {
+  if (!data.success) {
     const attempts = getLoginAttempts() + 1;
     setLoginAttempts(attempts);
 
     if (attempts >= 3) {
       const lockUntil = Date.now() + 60_000;
       localStorage.setItem(LOCK_UNTIL_KEY, String(lockUntil));
-      throw new Error("Muitas tentativas inválidas. Login bloqueado por 60 segundos.");
+      throw new Error(
+        "Muitas tentativas inválidas. Login bloqueado por 60 segundos."
+      );
     }
 
-    throw new Error(`Usuário não encontrado. Tentativa ${attempts} de 3.`);
-  }
-
-  const isValid = await bcrypt.compare(password, user.passwordHash);
-
-  if (!isValid) {
-    const attempts = getLoginAttempts() + 1;
-    setLoginAttempts(attempts);
-
-    if (attempts >= 3) {
-      const lockUntil = Date.now() + 60_000;
-      localStorage.setItem(LOCK_UNTIL_KEY, String(lockUntil));
-      throw new Error("Muitas tentativas inválidas. Login bloqueado por 60 segundos.");
-    }
-
-    throw new Error(`Senha incorreta. Tentativa ${attempts} de 3.`);
+    throw new Error(data.message || `Falha no login. Tentativa ${attempts} de 3.`);
   }
 
   clearLoginAttempts();
   localStorage.setItem(AUTH_KEY, "true");
-  localStorage.setItem(CURRENT_USER_KEY, user.username);
+  localStorage.setItem(CURRENT_USER_KEY, data.data?.name || username);
+  localStorage.setItem(USER_DATA_KEY, JSON.stringify(data.data));
+
+  return data;
 }
 
 export function logoutUser() {
   localStorage.removeItem(AUTH_KEY);
   localStorage.removeItem(CURRENT_USER_KEY);
+  localStorage.removeItem(USER_DATA_KEY);
 }
 
 export function isAuthenticated() {
@@ -167,4 +152,9 @@ export function isAuthenticated() {
 
 export function getCurrentUser() {
   return localStorage.getItem(CURRENT_USER_KEY) || "";
+}
+
+export function getCurrentUserData() {
+  const data = localStorage.getItem(USER_DATA_KEY);
+  return data ? JSON.parse(data) : null;
 }

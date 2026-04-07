@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ambiente virtual
+venv/
+.env
+
+# Flask
+instance/
+
+# Banco de dados (se gerar arquivos locais)
+*.sqlite3
+
+# Outros
+.env.local
+

@@ -1,49 +1,38 @@
-import { Home, Package, Boxes, LogOut } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { getCurrentUser, logoutUser } from "../services/auth";
+import { Link, useNavigate } from "react-router-dom";
+import { logoutUser, getCurrentUser } from "../services/auth";
 
 export function Navbar() {
-  const location = useLocation();
-  const usuario = getCurrentUser();
+  const navigate = useNavigate();
+  const user = getCurrentUser();
 
-  function logout() {
+  function handleLogout() {
+    const confirmar = window.confirm("Deseja sair do sistema?");
+    if (!confirmar) return;
+
     logoutUser();
-    window.location.href = "/login";
+    navigate("/login");
   }
 
   return (
-    <div className="navbar">
-      <div className="nav-content">
-        <div className="logo">📦 Sistema de Tênis</div>
+    <nav className="navbar">
+      <div className="navbar-left">
+        <h2>React Estoque</h2>
 
-        <div className="menu">
-          <Link to="/" className={location.pathname === "/" ? "active" : ""}>
-            <Home size={16} /> Home
-          </Link>
-
-          <Link
-            to="/produtos"
-            className={location.pathname === "/produtos" ? "active" : ""}
-          >
-            <Package size={16} /> Lista de Produtos
-          </Link>
-
-          <Link
-            to="/estoque"
-            className={location.pathname === "/estoque" ? "active" : ""}
-          >
-            <Boxes size={16} /> Estoque
-          </Link>
-
-          <div className="user-area">
-            <span className="user-badge">{usuario}</span>
-
-            <button className="logout-btn" onClick={logout}>
-              <LogOut size={16} /> Sair
-            </button>
-          </div>
-        </div>
+        <Link to="/">Home</Link>
+        <Link to="/produtos">Produtos</Link>
+        <Link to="/estoque">Estoque</Link>
+        <Link to="/cadastro-produto">Cadastrar Produto</Link>
       </div>
-    </div>
+
+      <div className="navbar-right">
+        <span className="user-name">
+          👤 {user || "Usuário"}
+        </span>
+
+        <button className="logout-button" onClick={handleLogout}>
+          Sair
+        </button>
+      </div>
+    </nav>
   );
 }
