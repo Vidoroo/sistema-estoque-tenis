@@ -47,9 +47,7 @@ export function Produtos() {
         category: produto.category || "",
         quantity: produto.quantity ?? 0,
         price: Number(produto.price) || 0,
-        image:
-          produto.image ||
-          "https://via.placeholder.com/56?text=%F0%9F%91%9F",
+        image: produto.image || "https://via.placeholder.com/56?text=IMG",
       }));
 
       setProducts(produtosFormatados);
@@ -175,76 +173,77 @@ export function Produtos() {
       {loading ? (
         <p>Carregando produtos...</p>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>NCM</th>
-              <th>Produto</th>
-              <th>Preço</th>
-              <th>Imagem</th>
-              <th>Estoque</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {products.length === 0 ? (
+        <div className="table-card">
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={6}>Nenhum produto cadastrado.</td>
+                <th>NCM</th>
+                <th>Produto</th>
+                <th>Preço</th>
+                <th>Imagem</th>
+                <th>Estoque</th>
+                <th>Ações</th>
               </tr>
-            ) : (
-              products.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.ncm}</td>
-                  <td>{p.name}</td>
-                  <td>R$ {p.price.toFixed(2)}</td>
+            </thead>
 
-                  <td>
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className="product-img"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://via.placeholder.com/56?text=%F0%9F%91%9F";
-                      }}
-                    />
-                  </td>
-
-                  <td>
-                    <span
-                      className={`badge ${p.quantity < 10 ? "yellow" : "green"}`}
-                    >
-                      {p.quantity} unidades
-                    </span>
-                  </td>
-
-                  <td>
-                    <div className="actions-cell">
-                      <button
-                        type="button"
-                        className="icon-action edit"
-                        onClick={() => abrirEdicao(p)}
-                        title="Editar"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="icon-action delete"
-                        onClick={() => excluirProduto(p.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            <tbody>
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="empty-state-cell">
+                    Nenhum produto cadastrado.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                products.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.ncm}</td>
+                    <td>{p.name}</td>
+                    <td>R$ {p.price.toFixed(2)}</td>
+
+                    <td>
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        className="product-img"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://via.placeholder.com/56?text=IMG";
+                        }}
+                      />
+                    </td>
+
+                    <td>
+                      <span className={`badge ${p.quantity < 10 ? "yellow" : "green"}`}>
+                        {p.quantity} unidades
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="actions-cell">
+                        <button
+                          type="button"
+                          className="icon-action edit"
+                          onClick={() => abrirEdicao(p)}
+                          title="Editar"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="icon-action delete"
+                          onClick={() => excluirProduto(p.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {produtoEditando && (
@@ -285,11 +284,11 @@ export function Produtos() {
                 onChange={(e) => setFormStock(e.target.value)}
               />
 
-              <label>Imagem</label>
+              <label>URL da imagem</label>
               <input
                 value={formImage}
                 onChange={(e) => setFormImage(e.target.value)}
-                placeholder="URL da imagem"
+                placeholder="https://site.com/imagem.jpg"
               />
             </div>
 

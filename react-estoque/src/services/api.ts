@@ -5,6 +5,7 @@ export type ProdutoPayload = {
   category: string;
   quantity: number;
   price: number;
+  image?: string;
 };
 
 export async function listarProdutos() {

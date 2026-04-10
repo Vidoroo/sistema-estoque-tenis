@@ -6,6 +6,7 @@ function CadastroProduto() {
   const [category, setCategory] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
   const [price, setPrice] = useState<string>("");
+  const [image, setImage] = useState<string>("");
   const [mensagem, setMensagem] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -14,7 +15,7 @@ function CadastroProduto() {
     setMensagem("");
 
     if (!name || !category || !quantity || !price) {
-      setMensagem("Preencha todos os campos.");
+      setMensagem("Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -31,15 +32,16 @@ function CadastroProduto() {
         category,
         quantity: Number(quantity),
         price: Number(price),
+        image,
       });
 
       if (resposta.success) {
         setMensagem("Produto cadastrado com sucesso!");
-
         setName("");
         setCategory("");
         setQuantity("");
         setPrice("");
+        setImage("");
       } else {
         setMensagem(resposta.message || "Erro ao cadastrar produto.");
       }
@@ -94,6 +96,17 @@ function CadastroProduto() {
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label>URL da imagem:</label>
+          <input
+            type="text"
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            disabled={loading}
+            placeholder="https://site.com/imagem.jpg"
           />
         </div>
 

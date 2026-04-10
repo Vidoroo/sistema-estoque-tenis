@@ -13,6 +13,7 @@ def create_product():
     category = data.get("category")
     quantity = data.get("quantity", 0)
     price = data.get("price", 0)
+    image = data.get("image", "")
 
     if not name:
         return error_response("Nome do produto é obrigatório.", 400)
@@ -21,7 +22,8 @@ def create_product():
         name=name,
         category=category,
         quantity=quantity,
-        price=price
+        price=price,
+        image=image
     )
 
     db.session.add(product)
@@ -29,7 +31,8 @@ def create_product():
 
     return success_response("Produto cadastrado com sucesso.", {
         "id": product.id,
-        "name": product.name
+        "name": product.name,
+        "image": product.image
     }, 201)
 
 @products_bp.route("/", methods=["GET"])
@@ -44,6 +47,7 @@ def list_products():
             "category": product.category,
             "quantity": product.quantity,
             "price": product.price,
+            "image": product.image,
             "created_at": product.created_at.isoformat()
         })
 
@@ -62,6 +66,7 @@ def update_product(product_id):
     product.category = data.get("category", product.category)
     product.quantity = data.get("quantity", product.quantity)
     product.price = data.get("price", product.price)
+    product.image = data.get("image", product.image)
 
     db.session.commit()
 

@@ -18,6 +18,7 @@ class Product(db.Model):
     category = db.Column(db.String(100))
     quantity = db.Column(db.Integer, default=0, nullable=False)
     price = db.Column(db.Float, default=0.0, nullable=False)
+    image = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class StockHistory(db.Model):
@@ -25,7 +26,7 @@ class StockHistory(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
-    movement_type = db.Column(db.String(20), nullable=False)  # entrada ou saida
+    movement_type = db.Column(db.String(20), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
