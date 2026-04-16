@@ -7,9 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Node
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
@@ -22,6 +23,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
 # Python
 __pycache__/
 *.pyc
@@ -30,14 +32,13 @@ __pycache__/
 
 # Ambiente virtual
 venv/
+
+# Env
 .env
+.env.local
 
 # Flask
 instance/
 
-# Banco de dados (se gerar arquivos locais)
+# Banco de dados
 *.sqlite3
-
-# Outros
-.env.local
-

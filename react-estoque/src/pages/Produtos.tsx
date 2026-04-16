@@ -13,7 +13,7 @@ type Product = {
 
 const API_URL = "http://127.0.0.1:5000/api";
 
-export function Produtos() {
+export default function Produtos() {
   const [products, setProducts] = useState<Product[]>([]);
   const [produtoEditando, setProdutoEditando] = useState<Product | null>(null);
 

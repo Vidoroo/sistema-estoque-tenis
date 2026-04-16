@@ -1,16 +1,8 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { isAuthenticated } from "../services/auth";
 
-type Props = {
-  children: React.ReactNode;
-};
-
-export function PrivateRoute({ children }: Props) {
+export default function PrivateRoute() {
   const autenticado = isAuthenticated();
 
-  if (!autenticado) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return autenticado ? <Outlet /> : <Navigate to="/login" replace />;
 }
