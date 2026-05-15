@@ -34,7 +34,7 @@ def _vendedor_dict(v: Vendedor, base_url: str = "") -> dict:
 @vendedores_bp.route("/", methods=["GET"])
 def listar_vendedores():
     vendedores = Vendedor.query.order_by(Vendedor.created_at.desc()).all()
-    base = "http://localhost:5173"  # Aponta pro frontend
+    base = "https://sistema-estoque-tenis.vercel.app"  # Aponta pro frontend
     return success_response("Vendedores listados.", [_vendedor_dict(v, base) for v in vendedores])
 
 
