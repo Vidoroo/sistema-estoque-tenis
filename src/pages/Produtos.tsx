@@ -14,7 +14,7 @@ type Product = {
   fornecedor: string | null;
 };
 
-const API_URL = "http://127.0.0.1:5000/api";
+const API_URL = "https://sistema-estoque-tenis-backend.onrender.com/api";
 
 // ── Estilos ────────────────────────────────────────────────────────────────────
 const s = {
