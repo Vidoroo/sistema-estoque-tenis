@@ -8,6 +8,7 @@ def create_app():
     app.config.from_object(Config)
 
     CORS(app, origins="*")
+    db.init_app(app)
 
     from app.routes.auth          import auth_bp
     from app.routes.users         import users_bp
