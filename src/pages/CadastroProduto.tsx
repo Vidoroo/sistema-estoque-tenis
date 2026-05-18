@@ -72,8 +72,8 @@ const s = {
   tamanhosGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "12px", marginBottom: "16px" } as React.CSSProperties,
 };
 
-function toNumber(value: string) {
-  const n = Number(String(value).replace(",", "."));
+function toNumber(value: string | number | undefined | null) {
+  const n = Number(String(value ?? "").replace(",", "."));
   return Number.isNaN(n) ? 0 : n;
 }
 
@@ -88,26 +88,21 @@ function formatarDataBR(valor: string) {
   return `${numeros.slice(0, 2)}/${numeros.slice(2, 4)}/${numeros.slice(4, 8)}`;
 }
 
-// Componente de campo de preço com cálculo de lucro
 function CampoPrecoComLucro({
   label,
   value,
   onChange,
   precoBase,
-  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   precoBase: number;
-  placeholder?: string;
 }) {
   const preco = toNumber(value);
   const lucroReais = precoBase > 0 && preco > 0 ? preco - precoBase : null;
   const lucroPct = precoBase > 0 && preco > 0 ? ((preco - precoBase) / precoBase) * 100 : null;
-
-  const corLucro =
-    lucroReais === null ? "#9ca3af" : lucroReais >= 0 ? "#16a34a" : "#dc2626";
+  const corLucro = lucroReais === null ? "#9ca3af" : lucroReais >= 0 ? "#16a34a" : "#dc2626";
 
   return (
     <div>
@@ -118,33 +113,17 @@ function CampoPrecoComLucro({
         step="0.01"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? "0,00"}
+        placeholder="0,00"
       />
       {precoBase > 0 && preco > 0 && lucroReais !== null && (
-        <div
-          style={{
-            marginTop: "5px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: corLucro,
-            display: "flex",
-            gap: "8px",
-          }}
-        >
-          <span>
-            Lucro: R$ {lucroReais.toFixed(2)}
-          </span>
+        <div style={{ marginTop: "5px", fontSize: "12px", fontWeight: 600, color: corLucro, display: "flex", gap: "8px" }}>
+          <span>Lucro: R$ {lucroReais.toFixed(2)}</span>
           <span>({lucroPct!.toFixed(1)}%)</span>
-        </div>
-      )}
-      {precoBase > 0 && preco === 0 && (
-        <div style={{ marginTop: "5px", fontSize: "12px", color: "#9ca3af" }}>
-          Informe o preço para ver o lucro
         </div>
       )}
       {precoBase === 0 && (
         <div style={{ marginTop: "5px", fontSize: "12px", color: "#9ca3af" }}>
-          Informe o Preço Base para calcular o lucro
+          Informe o Custo para calcular o lucro
         </div>
       )}
     </div>
@@ -201,11 +180,11 @@ export default function CadastroProduto() {
       name: p.name || "",
       category: p.category || "",
       quantity: String(p.quantity ?? 0),
-      price: String(p.price ?? 0),
+      price: p.price != null && toNumber(p.price) !== 0 ? String(p.price) : "",
       image: p.image || "",
-      preco_atacado: String(p.preco_atacado ?? 0),
-      preco_dropshipping: String(p.preco_dropshipping ?? 0),
-      preco_varejo: String(p.preco_varejo ?? 0),
+      preco_atacado: p.preco_atacado != null && toNumber(p.preco_atacado) !== 0 ? String(p.preco_atacado) : "",
+      preco_dropshipping: p.preco_dropshipping != null && toNumber(p.preco_dropshipping) !== 0 ? String(p.preco_dropshipping) : "",
+      preco_varejo: p.preco_varejo != null && toNumber(p.preco_varejo) !== 0 ? String(p.preco_varejo) : "",
       nota_fiscal: p.nota_fiscal || "",
       serie_nf: p.serie_nf || "",
       data_emissao: p.data_emissao || "",
@@ -231,16 +210,15 @@ export default function CadastroProduto() {
   };
 
   const salvar = async () => {
-    if (!form.name.trim()) { alert("O nome do produto é obrigatório."); return; }
-    if (!form.category.trim()) { alert("A categoria é obrigatória."); return; }
+    if (!form.name.trim()) { alert("O nome do produto e obrigatorio."); return; }
+    if (!form.category.trim()) { alert("A categoria e obrigatoria."); return; }
     setSalvando(true);
     try {
-      const quantidadeTotal = calcularQuantidadeTotal(form.tamanhos);
       const payload: ProdutoPayload = {
         codigo: form.codigo || undefined,
         name: form.name,
         category: form.category,
-        quantity: quantidadeTotal,
+        quantity: calcularQuantidadeTotal(form.tamanhos),
         price: toNumber(form.price),
         image: form.image || undefined,
         preco_atacado: toNumber(form.preco_atacado),
@@ -280,8 +258,6 @@ export default function CadastroProduto() {
   const totalProdutos = produtos.length;
   const semEstoque = produtos.filter((p) => Number(p.quantity) === 0).length;
   const baixoEstoque = produtos.filter((p) => Number(p.quantity) > 0 && Number(p.quantity) <= 5).length;
-
-  // Preço base para cálculo de lucro no modal
   const precoBase = toNumber(form.price);
 
   return (
@@ -310,7 +286,7 @@ export default function CadastroProduto() {
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
             <input
               style={s.input}
-              placeholder="Buscar por código, nome, categoria ou nota fiscal..."
+              placeholder="Buscar por codigo, nome, categoria ou NF..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
@@ -331,24 +307,34 @@ export default function CadastroProduto() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  {["Código", "Imagem", "Produto", "Categoria", "Quantidade", "Preço Base", "Preço Varejo", "Nota Fiscal", "Ações"].map((h) => (
-                    <th key={h} style={s.th}>{h}</th>
-                  ))}
+                  <th style={s.th}>Cod.</th>
+                  <th style={s.th}>Img</th>
+                  <th style={s.th}>Produto</th>
+                  <th style={s.th}>Categoria</th>
+                  <th style={s.th}>Qtd</th>
+                  <th style={{ ...s.th, color: "#374151" }}>Custo</th>
+                  <th style={{ ...s.th, color: "#7c3aed" }}>Drop</th>
+                  <th style={{ ...s.th, color: "#b45309" }}>Atacado</th>
+                  <th style={{ ...s.th, color: "#16a34a" }}>Varejo</th>
+                  <th style={s.th}>NF</th>
+                  <th style={s.th}>Acoes</th>
                 </tr>
               </thead>
               <tbody>
                 {produtosFiltrados.map((p) => (
                   <tr key={p.id}>
-                    <td style={s.td}><strong>{p.codigo || "—"}</strong></td>
+                    <td style={s.td}><strong>{p.codigo || "-"}</strong></td>
                     <td style={s.td}>
                       {p.image ? <img src={p.image} alt={p.name} style={s.imgThumb} /> : <div style={s.imgThumb} />}
                     </td>
                     <td style={s.td}><strong>{p.name}</strong></td>
                     <td style={s.td}>{p.category}</td>
                     <td style={s.td}>{p.quantity}</td>
-                    <td style={s.td}>R$ {Number(p.price ?? 0).toFixed(2)}</td>
-                    <td style={s.td}>R$ {Number(p.preco_varejo ?? p.price ?? 0).toFixed(2)}</td>
-                    <td style={s.td}>{p.nota_fiscal || "—"}</td>
+                    <td style={s.td}><span style={{ fontSize: "13px", color: "#374151" }}>R$ {toNumber(p.price).toFixed(2)}</span></td>
+                    <td style={s.td}><span style={{ fontSize: "13px", color: "#7c3aed" }}>R$ {toNumber(p.preco_dropshipping).toFixed(2)}</span></td>
+                    <td style={s.td}><span style={{ fontSize: "13px", color: "#b45309" }}>R$ {toNumber(p.preco_atacado).toFixed(2)}</span></td>
+                    <td style={s.td}><span style={{ fontSize: "13px", fontWeight: 600, color: "#16a34a" }}>R$ {toNumber(p.preco_varejo).toFixed(2)}</span></td>
+                    <td style={s.td}>{p.nota_fiscal || "-"}</td>
                     <td style={s.td}>
                       <div style={{ display: "flex", gap: "6px" }}>
                         <button style={s.btnEdit} onClick={() => abrirEdicao(p)}>Editar</button>
@@ -374,7 +360,7 @@ export default function CadastroProduto() {
 
             <div style={{ ...s.formGroup, ...s.formRow }}>
               <div>
-                <label style={s.label}>Código (4 dígitos)</label>
+                <label style={s.label}>Codigo (4 digitos)</label>
                 <input
                   style={s.formInput}
                   maxLength={4}
@@ -384,25 +370,18 @@ export default function CadastroProduto() {
                 />
               </div>
               <div>
-                <label style={s.label}>
-                  Preço Base (custo de compra) *
-                </label>
+                <label style={s.label}>Custo (preco de compra) *</label>
                 <input
-                  style={{
-                    ...s.formInput,
-                    borderColor: "#071633",
-                    borderWidth: "2px",
-                    fontWeight: 600,
-                  }}
+                  style={{ ...s.formInput, borderColor: "#071633", borderWidth: "2px", fontWeight: 600 }}
                   type="number"
                   step="0.01"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="0,00 — base para cálculo de lucro"
+                  placeholder="0,00 — base para calculo de lucro"
                 />
                 {precoBase > 0 && (
                   <div style={{ marginTop: "5px", fontSize: "12px", color: "#071633", fontWeight: 600 }}>
-                    💰 Base: R$ {precoBase.toFixed(2)}
+                    Custo: R$ {precoBase.toFixed(2)}
                   </div>
                 )}
               </div>
@@ -414,7 +393,7 @@ export default function CadastroProduto() {
                 style={s.formInput}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: Tênis Nike Air"
+                placeholder="Ex: Tenis Nike Air"
               />
             </div>
 
@@ -439,42 +418,32 @@ export default function CadastroProduto() {
               </div>
             </div>
 
-            {/* Tipos de preço com lucro */}
-            <div style={s.sectionTitle}>Tipos de Preço e Lucro</div>
+            <div style={s.sectionTitle}>Precos de Venda e Lucro</div>
 
             {precoBase === 0 && (
-              <div style={{
-                backgroundColor: "#fef9c3",
-                border: "1px solid #fde047",
-                borderRadius: "8px",
-                padding: "10px 14px",
-                marginBottom: "16px",
-                fontSize: "13px",
-                color: "#854d0e",
-                fontWeight: 500,
-              }}>
-                ⚠️ Preencha o <strong>Preço Base</strong> acima para ver o lucro calculado automaticamente.
+              <div style={{ backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px", fontSize: "13px", color: "#854d0e", fontWeight: 500 }}>
+                Preencha o <strong>Custo</strong> acima para ver o lucro calculado automaticamente.
               </div>
             )}
 
             <div style={{ ...s.formGroup, ...s.formRow }}>
               <CampoPrecoComLucro
-                label="Preço Atacado"
-                value={form.preco_atacado}
-                onChange={(v) => setForm({ ...form, preco_atacado: v })}
+                label="Dropshipping (lojas que usam seu estoque)"
+                value={form.preco_dropshipping}
+                onChange={(v) => setForm({ ...form, preco_dropshipping: v })}
                 precoBase={precoBase}
               />
               <CampoPrecoComLucro
-                label="Preço Dropshipping"
-                value={form.preco_dropshipping}
-                onChange={(v) => setForm({ ...form, preco_dropshipping: v })}
+                label="Atacado (lojas, acima de 6 pares)"
+                value={form.preco_atacado}
+                onChange={(v) => setForm({ ...form, preco_atacado: v })}
                 precoBase={precoBase}
               />
             </div>
 
             <div style={s.formGroup}>
               <CampoPrecoComLucro
-                label="Preço Varejo"
+                label="Varejo (pessoa fisica)"
                 value={form.preco_varejo}
                 onChange={(v) => setForm({ ...form, preco_varejo: v })}
                 precoBase={precoBase}
@@ -485,18 +454,18 @@ export default function CadastroProduto() {
 
             <div style={{ ...s.formGroup, ...s.formRow }}>
               <div>
-                <label style={s.label}>Número da Nota</label>
+                <label style={s.label}>Numero da Nota</label>
                 <input style={s.formInput} value={form.nota_fiscal} onChange={(e) => setForm({ ...form, nota_fiscal: e.target.value })} placeholder="Ex: 12345" />
               </div>
               <div>
-                <label style={s.label}>Série</label>
+                <label style={s.label}>Serie</label>
                 <input style={s.formInput} value={form.serie_nf} onChange={(e) => setForm({ ...form, serie_nf: e.target.value })} placeholder="Ex: 1" />
               </div>
             </div>
 
             <div style={{ ...s.formGroup, ...s.formRow }}>
               <div>
-                <label style={s.label}>Data de Emissão</label>
+                <label style={s.label}>Data de Emissao</label>
                 <input
                   style={s.formInput}
                   type="text"
@@ -519,21 +488,21 @@ export default function CadastroProduto() {
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Observações da Nota</label>
+              <label style={s.label}>Observacoes da Nota</label>
               <textarea
                 style={{ ...s.formInput, minHeight: "72px", resize: "vertical" }}
                 value={form.observacoes_nf}
                 onChange={(e) => setForm({ ...form, observacoes_nf: e.target.value })}
-                placeholder="Observações adicionais"
+                placeholder="Observacoes adicionais"
               />
             </div>
 
-            <div style={s.sectionTitle}>Números Disponíveis</div>
+            <div style={s.sectionTitle}>Numeros Disponiveis</div>
 
             <div style={s.tamanhosGrid}>
               {Object.keys(form.tamanhos).map((numero) => (
                 <div key={numero}>
-                  <label style={s.label}>Nº {numero}</label>
+                  <label style={s.label}>Nr {numero}</label>
                   <input
                     style={s.formInput}
                     type="number"
@@ -556,7 +525,7 @@ export default function CadastroProduto() {
                 Cancelar
               </button>
               <button style={s.btnPrimary} onClick={salvar} disabled={salvando}>
-                {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Cadastrar"}
+                {salvando ? "Salvando..." : editando ? "Salvar Alteracoes" : "Cadastrar"}
               </button>
             </div>
           </div>
