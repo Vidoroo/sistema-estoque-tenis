@@ -7,8 +7,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app, origins=["https://sistema-estoque-teniss.vercel.app"])
-    db.init_app(app)
+    CORS(app, origins=[
+    "https://sistema-estoque-teniss.vercel.app",
+    "https://sistema-estoque-tenis-frontend.onrender.com"
+])
 
     from app.routes.auth          import auth_bp
     from app.routes.users         import users_bp
