@@ -44,7 +44,7 @@ console.log("Home carregou");
       <div style={contentWrapperStyle}>
         <header style={topbarStyle}>
           <h2 style={{ margin: 0, fontSize: '20px', color: '#111827' }}>
-            Sistema de Estoque
+      
           </h2>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

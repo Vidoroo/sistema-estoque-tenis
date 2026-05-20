@@ -42,7 +42,7 @@ export default function Sidebar() {
 
   return (
     <aside style={sidebarStyle}>
-      <div style={logoStyle}>React Estoque</div>
+      <div style={logoStyle}>Sistema de Estoque</div>
 
       {menuItems.map((item) => (
         <NavLink
