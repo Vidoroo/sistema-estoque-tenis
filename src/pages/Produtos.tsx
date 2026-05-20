@@ -8,7 +8,7 @@ type Product = {
   quantity: number;
   price: number;
   preco_varejo: number;
-  preco_atacado: number;
+  preco_atacado: number;`n  preco_dropshipping: number;
   image: string;
   tamanhos: Record<string, string>;
   fornecedor: string | null;
