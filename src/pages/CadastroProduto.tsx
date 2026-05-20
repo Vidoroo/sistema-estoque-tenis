@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   criarProduto,
   editarProduto,
@@ -6,6 +6,9 @@ import {
   listarProdutos,
   type ProdutoPayload,
 } from "../services/api";
+
+const CLOUDINARY_CLOUD = "daxx6a9pw";
+const CLOUDINARY_PRESET = "estoque_tenis";
 
 type Produto = ProdutoPayload & {
   id: number;
@@ -89,15 +92,9 @@ function formatarDataBR(valor: string) {
 }
 
 function CampoPrecoComLucro({
-  label,
-  value,
-  onChange,
-  precoBase,
+  label, value, onChange, precoBase,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  precoBase: number;
+  label: string; value: string; onChange: (v: string) => void; precoBase: number;
 }) {
   const preco = toNumber(value);
   const lucroReais = precoBase > 0 && preco > 0 ? preco - precoBase : null;
@@ -107,14 +104,7 @@ function CampoPrecoComLucro({
   return (
     <div>
       <label style={s.label}>{label}</label>
-      <input
-        style={s.formInput}
-        type="number"
-        step="0.01"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="0,00"
-      />
+      <input style={s.formInput} type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0,00" />
       {precoBase > 0 && preco > 0 && lucroReais !== null && (
         <div style={{ marginTop: "5px", fontSize: "12px", fontWeight: 600, color: corLucro, display: "flex", gap: "8px" }}>
           <span>Lucro: R$ {lucroReais.toFixed(2)}</span>
@@ -122,10 +112,77 @@ function CampoPrecoComLucro({
         </div>
       )}
       {precoBase === 0 && (
-        <div style={{ marginTop: "5px", fontSize: "12px", color: "#9ca3af" }}>
-          Informe o Custo para calcular o lucro
-        </div>
+        <div style={{ marginTop: "5px", fontSize: "12px", color: "#9ca3af" }}>Informe o Custo para calcular o lucro</div>
       )}
+    </div>
+  );
+}
+
+function UploadImagem({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_PRESET);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.secure_url) {
+        onChange(data.secure_url);
+      } else {
+        alert("Erro ao fazer upload da imagem.");
+      }
+    } catch {
+      alert("Erro ao conectar com o Cloudinary.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label style={s.label}>Imagem do Produto</label>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        {value ? (
+          <img src={value} alt="preview" style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "8px", border: "1px solid #e5e7eb" }} />
+        ) : (
+          <div style={{ width: "64px", height: "64px", borderRadius: "8px", backgroundColor: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>
+            👟
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <button
+            type="button"
+            style={{ ...s.btnEdit, padding: "7px 14px" }}
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? "Enviando..." : value ? "Trocar Imagem" : "Adicionar Imagem"}
+          </button>
+          {value && (
+            <button
+              type="button"
+              style={{ ...s.btnDanger, padding: "5px 10px", fontSize: "12px" }}
+              onClick={() => onChange("")}
+            >
+              Remover
+            </button>
+          )}
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        />
+      </div>
     </div>
   );
 }
@@ -377,7 +434,7 @@ export default function CadastroProduto() {
                   step="0.01"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="0,00 — base para calculo de lucro"
+                  placeholder="0,00"
                 />
                 {precoBase > 0 && (
                   <div style={{ marginTop: "5px", fontSize: "12px", color: "#071633", fontWeight: 600 }}>
@@ -408,12 +465,9 @@ export default function CadastroProduto() {
                 />
               </div>
               <div>
-                <label style={s.label}>Imagem (URL)</label>
-                <input
-                  style={s.formInput}
+                <UploadImagem
                   value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  placeholder="https://..."
+                  onChange={(url) => setForm({ ...form, image: url })}
                 />
               </div>
             </div>
