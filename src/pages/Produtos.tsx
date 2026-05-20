@@ -17,7 +17,6 @@ type Product = {
 
 const API_URL = "https://sistema-estoque-tenis-backend.onrender.com/api";
 
-// ── Estilos ────────────────────────────────────────────────────────────────────
 const s = {
   page:     { fontFamily: "'Segoe UI', sans-serif", color: "#071633" } as React.CSSProperties,
   title:    { fontSize: "2.2rem", fontWeight: 800, color: "#071633", marginBottom: "4px" } as React.CSSProperties,
@@ -41,20 +40,24 @@ const s = {
   modal: { backgroundColor: "#fff", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto" as const, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
 };
 
+function fmt(v: number) {
+  return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+}
+
 export default function Produtos() {
   const [products, setProducts] = useState<Product[]>([]);
   const [busca, setBusca]       = useState("");
   const [loading, setLoading]   = useState(true);
 
-  // Modal edição
-  const [editando, setEditando]     = useState<Product | null>(null);
-  const [formName, setFormName]     = useState("");
+  const [editando, setEditando]         = useState<Product | null>(null);
+  const [formName, setFormName]         = useState("");
   const [formCategory, setFormCategory] = useState("");
-  const [formPrice, setFormPrice]   = useState("");
-  const [formVarejo, setFormVarejo] = useState("");
-  const [formAtacado, setFormAtacado] = useState("");
-  const [formImage, setFormImage]   = useState("");
-  const [salvando, setSalvando]     = useState(false);
+  const [formPrice, setFormPrice]       = useState("");
+  const [formVarejo, setFormVarejo]     = useState("");
+  const [formAtacado, setFormAtacado]   = useState("");
+  const [formDrop, setFormDrop]         = useState("");
+  const [formImage, setFormImage]       = useState("");
+  const [salvando, setSalvando]         = useState(false);
 
   useEffect(() => { carregarProdutos(); }, []);
 
@@ -88,31 +91,31 @@ export default function Produtos() {
     setEditando(p);
     setFormName(p.name);
     setFormCategory(p.category);
-    setFormPrice(String(p.price));
-    setFormVarejo(String(p.preco_varejo || ""));
-    setFormAtacado(String(p.preco_atacado || ""));
+    setFormPrice(p.price > 0 ? String(p.price) : "");
+    setFormVarejo(p.preco_varejo > 0 ? String(p.preco_varejo) : "");
+    setFormAtacado(p.preco_atacado > 0 ? String(p.preco_atacado) : "");
+    setFormDrop(p.preco_dropshipping > 0 ? String(p.preco_dropshipping) : "");
     setFormImage(p.image || "");
   }
 
-  function fecharModal() {
-    setEditando(null);
-  }
+  function fecharModal() { setEditando(null); }
 
   async function salvarEdicao() {
     if (!editando) return;
-    if (!formName.trim() || !formPrice) { alert("Nome e preço são obrigatórios."); return; }
+    if (!formName.trim()) { alert("Nome e obrigatorio."); return; }
     setSalvando(true);
     try {
       const res = await fetch(`${API_URL}/products/${editando.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:              formName.trim(),
-          category:          formCategory.trim(),
-          price:             Number(formPrice),
-          preco_varejo:      Number(formVarejo) || 0,
-          preco_atacado:     Number(formAtacado) || 0,
-          image:             formImage.trim(),
+          name:               formName.trim(),
+          category:           formCategory.trim(),
+          price:              Number(formPrice) || 0,
+          preco_varejo:       Number(formVarejo) || 0,
+          preco_atacado:      Number(formAtacado) || 0,
+          preco_dropshipping: Number(formDrop) || 0,
+          image:              formImage.trim(),
         }),
       });
       const data = await res.json();
@@ -132,18 +135,16 @@ export default function Produtos() {
     p.codigo?.toLowerCase().includes(busca.toLowerCase())
   );
 
-  // Métricas
-  const totalProdutos   = products.length;
-  const semEstoque      = products.filter(p => p.quantity === 0).length;
-  const estoqueMinimo   = products.filter(p => p.quantity > 0 && p.quantity < 10).length;
-  const totalEmEstoque  = products.reduce((a, p) => a + p.quantity, 0);
+  const totalProdutos  = products.length;
+  const semEstoque     = products.filter(p => p.quantity === 0).length;
+  const estoqueMinimo  = products.filter(p => p.quantity > 0 && p.quantity < 10).length;
+  const totalEmEstoque = products.reduce((a, p) => a + p.quantity, 0);
 
   return (
     <div style={s.page}>
       <h1 style={s.title}>Produtos</h1>
-      <p style={s.subtitle}>Gerencie o catálogo de tênis do estoque.</p>
+      <p style={s.subtitle}>Gerencie o catalogo de tenis do estoque.</p>
 
-      {/* Cards de resumo */}
       <div style={s.grid}>
         <div style={s.summaryCard("#071633")}>
           <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", fontWeight: 600 }}>Total de Produtos</p>
@@ -163,13 +164,12 @@ export default function Produtos() {
         </div>
       </div>
 
-      {/* Tabela */}
       <div style={s.card}>
         <div style={s.toolbar}>
           <h2 style={{ margin: 0, color: "#071633" }}>Lista de Produtos</h2>
           <input
             style={s.input}
-            placeholder="Buscar por nome, categoria, código..."
+            placeholder="Buscar por nome, categoria, codigo..."
             value={busca}
             onChange={e => setBusca(e.target.value)}
           />
@@ -186,9 +186,16 @@ export default function Produtos() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  {["Produto", "Código", "Categoria", "Preço", "Tamanhos", "Estoque", "Ações"].map(h => (
-                    <th key={h} style={s.th}>{h}</th>
-                  ))}
+                  <th style={s.th}>Produto</th>
+                  <th style={s.th}>Codigo</th>
+                  <th style={s.th}>Categoria</th>
+                  <th style={s.th}>Custo</th>
+                  <th style={{ ...s.th, color: "#7c3aed" }}>Drop</th>
+                  <th style={{ ...s.th, color: "#b45309" }}>Atacado</th>
+                  <th style={{ ...s.th, color: "#16a34a" }}>Varejo</th>
+                  <th style={s.th}>Tamanhos</th>
+                  <th style={s.th}>Estoque</th>
+                  <th style={s.th}>Acoes</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,19 +208,15 @@ export default function Produtos() {
                     : { cor: "#16a34a", bg: "#dcfce7", texto: `${p.quantity} un.` };
 
                   return (
-                    <tr
-                      key={p.id}
+                    <tr key={p.id}
                       onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                       style={{ transition: "background 0.15s" }}
                     >
-                      {/* Produto com imagem */}
                       <td style={s.td}>
                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                           {p.image ? (
-                            <img
-                              src={p.image}
-                              alt={p.name}
+                            <img src={p.image} alt={p.name}
                               style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "8px", border: "1px solid #e5e7eb" }}
                               onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                             />
@@ -228,33 +231,33 @@ export default function Produtos() {
 
                       <td style={s.td}>
                         <span style={{ fontFamily: "monospace", fontSize: "13px", backgroundColor: "#f3f4f6", padding: "2px 8px", borderRadius: "4px" }}>
-                          {p.codigo || "—"}
+                          {p.codigo || "-"}
                         </span>
                       </td>
 
-                      <td style={s.td}>{p.category || "—"}</td>
+                      <td style={s.td}>{p.category || "-"}</td>
 
                       <td style={s.td}>
-                        <div style={{ fontSize: "13px" }}>
-                          <div style={{ fontWeight: 700 }}>R$ {Number(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-                          {p.preco_varejo > 0 && (
-                            <div style={{ color: "#6b7280", fontSize: "11px" }}>
-                              Varejo: R$ {Number(p.preco_varejo).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                            </div>
-                          )}
-                        </div>
+                        <span style={{ fontSize: "13px", color: "#374151" }}>R$ {fmt(p.price)}</span>
                       </td>
 
-                      {/* Tamanhos disponíveis */}
+                      <td style={s.td}>
+                        <span style={{ fontSize: "13px", color: "#7c3aed" }}>R$ {fmt(p.preco_dropshipping)}</span>
+                      </td>
+
+                      <td style={s.td}>
+                        <span style={{ fontSize: "13px", color: "#b45309" }}>R$ {fmt(p.preco_atacado)}</span>
+                      </td>
+
+                      <td style={s.td}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#16a34a" }}>R$ {fmt(p.preco_varejo)}</span>
+                      </td>
+
                       <td style={s.td}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", maxWidth: "200px" }}>
                           {tamanhos.length > 0 ? tamanhos.map(([t, q]) => (
-                            <span key={t} style={{
-                              padding: "2px 7px", borderRadius: "4px", fontSize: "11px", fontWeight: 600,
-                              backgroundColor: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe",
-                            }}>
-                              {t}
-                              <span style={{ opacity: 0.7, marginLeft: "2px" }}>({q})</span>
+                            <span key={t} style={{ padding: "2px 7px", borderRadius: "4px", fontSize: "11px", fontWeight: 600, backgroundColor: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }}>
+                              {t}<span style={{ opacity: 0.7, marginLeft: "2px" }}>({q})</span>
                             </span>
                           )) : (
                             <span style={{ color: "#dc2626", fontSize: "12px" }}>Sem estoque</span>
@@ -262,13 +265,8 @@ export default function Produtos() {
                         </div>
                       </td>
 
-                      {/* Badge de estoque total */}
                       <td style={s.td}>
-                        <span style={{
-                          display: "inline-block", padding: "4px 10px", borderRadius: "999px",
-                          fontSize: "12px", fontWeight: 600,
-                          backgroundColor: estoqueStatus.bg, color: estoqueStatus.cor,
-                        }}>
+                        <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, backgroundColor: estoqueStatus.bg, color: estoqueStatus.cor }}>
                           {estoqueStatus.texto}
                         </span>
                       </td>
@@ -288,7 +286,6 @@ export default function Produtos() {
         )}
       </div>
 
-      {/* Modal edição */}
       {editando && (
         <div style={s.overlay} onClick={fecharModal}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
@@ -306,18 +303,24 @@ export default function Produtos() {
 
             <div style={{ ...s.fg, ...s.formRow }}>
               <div>
-                <label style={s.label}>Preço de Custo (R$)</label>
+                <label style={s.label}>Custo (R$)</label>
                 <input style={s.inputFull} type="number" step="0.01" min="0" value={formPrice} onChange={e => setFormPrice(e.target.value)} />
               </div>
               <div>
-                <label style={s.label}>Preço Varejo (R$)</label>
-                <input style={s.inputFull} type="number" step="0.01" min="0" value={formVarejo} onChange={e => setFormVarejo(e.target.value)} />
+                <label style={{ ...s.label, color: "#7c3aed" }}>Drop (R$)</label>
+                <input style={s.inputFull} type="number" step="0.01" min="0" value={formDrop} onChange={e => setFormDrop(e.target.value)} />
               </div>
             </div>
 
-            <div style={s.fg}>
-              <label style={s.label}>Preço Atacado (R$)</label>
-              <input style={s.inputFull} type="number" step="0.01" min="0" value={formAtacado} onChange={e => setFormAtacado(e.target.value)} />
+            <div style={{ ...s.fg, ...s.formRow }}>
+              <div>
+                <label style={{ ...s.label, color: "#b45309" }}>Atacado (R$)</label>
+                <input style={s.inputFull} type="number" step="0.01" min="0" value={formAtacado} onChange={e => setFormAtacado(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ ...s.label, color: "#16a34a" }}>Varejo (R$)</label>
+                <input style={s.inputFull} type="number" step="0.01" min="0" value={formVarejo} onChange={e => setFormVarejo(e.target.value)} />
+              </div>
             </div>
 
             <div style={s.fg}>
@@ -330,7 +333,7 @@ export default function Produtos() {
                 Cancelar
               </button>
               <button style={s.btnPrimary} onClick={salvarEdicao} disabled={salvando}>
-                {salvando ? "Salvando..." : "Salvar Alterações"}
+                {salvando ? "Salvando..." : "Salvar Alteracoes"}
               </button>
             </div>
           </div>
