@@ -29,7 +29,7 @@ const mainStyle: React.CSSProperties = {
 };
 
 export default function Layout() {
-  const username = localStorage.getItem('username') || 'Usuário';
+  const username = localStorage.getItem('currentUser') || 'Usuario';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
