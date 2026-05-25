@@ -257,7 +257,7 @@ export default function Produtos() {
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", maxWidth: "200px" }}>
                           {tamanhos.length > 0 ? tamanhos.map(([t, q]) => (
                             <span key={t} style={{ padding: "2px 7px", borderRadius: "4px", fontSize: "11px", fontWeight: 600, backgroundColor: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }}>
-                              {t}<span style={{ opacity: 0.7, marginLeft: "2px" }}>({q})</span>
+                              {t}
                             </span>
                           )) : (
                             <span style={{ color: "#dc2626", fontSize: "12px" }}>Sem estoque</span>
