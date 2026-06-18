@@ -1,3 +1,4 @@
+import os
 import uuid
 from flask import Blueprint, request
 from werkzeug.security import generate_password_hash
@@ -7,13 +8,15 @@ from app.utils.responses import success_response, error_response
 
 vendedores_bp = Blueprint("vendedores", __name__)
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sistema-estoque-tenis-frontend.onrender.com")
+
 
 def _gerar_token() -> str:
     return str(uuid.uuid4())
 
 
-def _vendedor_dict(v: Vendedor, base_url: str = "") -> dict:
-    link = f"{base_url}/vendedor/{v.token}" if v.token else None
+def _vendedor_dict(v: Vendedor) -> dict:
+    link = f"{FRONTEND_URL}/vendedor/{v.token}" if v.token else None
     return {
         "id":                  v.id,
         "nome":                v.nome,
@@ -30,25 +33,23 @@ def _vendedor_dict(v: Vendedor, base_url: str = "") -> dict:
     }
 
 
-# ── GET /api/vendedores/ ───────────────────────────────────────────────────────
+# -- GET /api/vendedores/
 @vendedores_bp.route("/", methods=["GET"])
 def listar_vendedores():
     vendedores = Vendedor.query.order_by(Vendedor.created_at.desc()).all()
-    base = "https://sistema-estoque-tenis.vercel.app"  # Aponta pro frontend
-    return success_response("Vendedores listados.", [_vendedor_dict(v, base) for v in vendedores])
+    return success_response("Vendedores listados.", [_vendedor_dict(v) for v in vendedores])
 
 
-# ── POST /api/vendedores/ ──────────────────────────────────────────────────────
+# -- POST /api/vendedores/
 @vendedores_bp.route("/", methods=["POST"])
 def criar_vendedor():
     try:
         data = request.get_json()
         nome = data.get("nome", "").strip()
         if not nome:
-            return error_response("Nome é obrigatório.", 400)
+            return error_response("Nome e obrigatorio.", 400)
 
         token = _gerar_token()
-        # Garante unicidade do token
         while Vendedor.query.filter_by(token=token).first():
             token = _gerar_token()
 
@@ -65,20 +66,19 @@ def criar_vendedor():
         db.session.add(vendedor)
         db.session.commit()
 
-        base = request.host_url.rstrip("/").replace("5000", "5173")
-        return success_response("Vendedor cadastrado.", _vendedor_dict(vendedor, base), 201)
+        return success_response("Vendedor cadastrado.", _vendedor_dict(vendedor), 201)
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
 
 
-# ── PUT /api/vendedores/<id> ──────────────────────────────────────────────────
+# -- PUT /api/vendedores/<id>
 @vendedores_bp.route("/<int:vendedor_id>", methods=["PUT"])
 def atualizar_vendedor(vendedor_id):
     try:
         v = Vendedor.query.get(vendedor_id)
         if not v:
-            return error_response("Vendedor não encontrado.", 404)
+            return error_response("Vendedor nao encontrado.", 404)
 
         data = request.get_json()
         v.nome                = data.get("nome", v.nome)
@@ -90,21 +90,19 @@ def atualizar_vendedor(vendedor_id):
         v.login_ativo         = data.get("login_ativo", v.login_ativo)
 
         db.session.commit()
-        base = request.host_url.rstrip("/").replace("5000", "5173")
-        return success_response("Vendedor atualizado.", _vendedor_dict(v, base))
+        return success_response("Vendedor atualizado.", _vendedor_dict(v))
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
 
 
-# ── POST /api/vendedores/<id>/senha ──────────────────────────────────────────
-# Admin define/redefine a senha do portal do vendedor
+# -- POST /api/vendedores/<id>/senha
 @vendedores_bp.route("/<int:vendedor_id>/senha", methods=["POST"])
 def definir_senha_vendedor(vendedor_id):
     try:
         v = Vendedor.query.get(vendedor_id)
         if not v:
-            return error_response("Vendedor não encontrado.", 404)
+            return error_response("Vendedor nao encontrado.", 404)
 
         data  = request.get_json()
         senha = data.get("senha", "").strip()
@@ -120,14 +118,13 @@ def definir_senha_vendedor(vendedor_id):
         return error_response(str(e), 500)
 
 
-# ── POST /api/vendedores/<id>/regenerar-token ────────────────────────────────
-# Gera um novo token (invalida o link anterior)
+# -- POST /api/vendedores/<id>/regenerar-token
 @vendedores_bp.route("/<int:vendedor_id>/regenerar-token", methods=["POST"])
 def regenerar_token(vendedor_id):
     try:
         v = Vendedor.query.get(vendedor_id)
         if not v:
-            return error_response("Vendedor não encontrado.", 404)
+            return error_response("Vendedor nao encontrado.", 404)
 
         novo_token = _gerar_token()
         while Vendedor.query.filter_by(token=novo_token).first():
@@ -136,26 +133,25 @@ def regenerar_token(vendedor_id):
         v.token = novo_token
         db.session.commit()
 
-        base = request.host_url.rstrip("/").replace("5000", "5173")
         return success_response("Token regenerado.", {
-            "token":      v.token,
-            "link_portal": f"{base}/vendedor/{v.token}",
+            "token":       v.token,
+            "link_portal": f"{FRONTEND_URL}/vendedor/{v.token}",
         })
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
 
 
-# ── DELETE /api/vendedores/<id> ───────────────────────────────────────────────
+# -- DELETE /api/vendedores/<id>
 @vendedores_bp.route("/<int:vendedor_id>", methods=["DELETE"])
 def excluir_vendedor(vendedor_id):
     try:
         v = Vendedor.query.get(vendedor_id)
         if not v:
-            return error_response("Vendedor não encontrado.", 404)
+            return error_response("Vendedor nao encontrado.", 404)
         db.session.delete(v)
         db.session.commit()
-        return success_response("Vendedor excluído.")
+        return success_response("Vendedor excluido.")
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
