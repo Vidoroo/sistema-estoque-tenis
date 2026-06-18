@@ -3,7 +3,7 @@ from datetime import datetime
 import random
 
 from app.extensions import db
-from app.models import Product
+from app.models import Product, ProdutoBarcode, StockHistory
 from app.utils.responses import success_response, error_response
 
 products_bp = Blueprint("products", __name__)
@@ -147,7 +147,7 @@ def list_products():
             "chave_acesso": product.chave_acesso,
             "observacoes_nf": product.observacoes_nf,
             "tamanhos": product.tamanhos,
-            "created_at": product.created_at.isoformat()
+            "created_at": product.created_at.isoformat() if product.created_at else None,
         })
 
     return success_response("Produtos listados com sucesso.", data)
@@ -222,6 +222,9 @@ def delete_product(product_id):
 
     if not product:
         return error_response("Produto não encontrado.", 404)
+
+    ProdutoBarcode.query.filter_by(product_id=product_id).delete()
+    StockHistory.query.filter_by(product_id=product_id).delete()
 
     db.session.delete(product)
     db.session.commit()

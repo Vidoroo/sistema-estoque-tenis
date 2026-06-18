@@ -37,11 +37,17 @@ const s = {
   th: { textAlign: "left" as const, padding: "10px 12px", borderBottom: "2px solid #e5e7eb", color: "#6b7280", fontWeight: 600, fontSize: "12px", textTransform: "uppercase" as const, letterSpacing: "0.05em" } as React.CSSProperties,
   td: { padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" as const } as React.CSSProperties,
   overlay: { position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } as React.CSSProperties,
-  modal: { backgroundColor: "#fff", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto" as const, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
+  modal: { backgroundColor: "#fff", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "560px", maxHeight: "90vh", overflowY: "auto" as const, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
+  sectionTitle: { margin: "20px 0 12px", color: "#071633", fontSize: "1.05rem", fontWeight: 700 } as React.CSSProperties,
+  tamanhosGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "12px", marginBottom: "16px" } as React.CSSProperties,
 };
 
 function fmt(v: number) {
   return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+}
+
+function calcularTotal(tamanhos: Record<string, string>) {
+  return Object.values(tamanhos).reduce((acc, v) => acc + (Number(v) || 0), 0);
 }
 
 export default function Produtos() {
@@ -57,6 +63,7 @@ export default function Produtos() {
   const [formAtacado, setFormAtacado]   = useState("");
   const [formDrop, setFormDrop]         = useState("");
   const [formImage, setFormImage]       = useState("");
+  const [formTamanhos, setFormTamanhos] = useState<Record<string, string>>({});
   const [salvando, setSalvando]         = useState(false);
 
   useEffect(() => { carregarProdutos(); }, []);
@@ -96,26 +103,38 @@ export default function Produtos() {
     setFormAtacado(p.preco_atacado > 0 ? String(p.preco_atacado) : "");
     setFormDrop(p.preco_dropshipping > 0 ? String(p.preco_dropshipping) : "");
     setFormImage(p.image || "");
+    // Carregar tamanhos existentes do produto
+    const tam: Record<string, string> = {};
+    Object.entries(p.tamanhos || {}).forEach(([k, v]) => {
+      tam[k] = String(v);
+    });
+    setFormTamanhos(tam);
   }
 
-  function fecharModal() { setEditando(null); }
+  function fecharModal() {
+    setEditando(null);
+    setFormTamanhos({});
+  }
 
   async function salvarEdicao() {
     if (!editando) return;
     if (!formName.trim()) { alert("Nome e obrigatorio."); return; }
     setSalvando(true);
     try {
+      const totalQty = calcularTotal(formTamanhos);
       const res = await fetch(`${API_URL}/products/${editando.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name:               formName.trim(),
           category:           formCategory.trim(),
+          quantity:           totalQty,
           price:              Number(formPrice) || 0,
           preco_varejo:       Number(formVarejo) || 0,
           preco_atacado:      Number(formAtacado) || 0,
           preco_dropshipping: Number(formDrop) || 0,
           image:              formImage.trim(),
+          tamanhos:           formTamanhos,
         }),
       });
       const data = await res.json();
@@ -327,6 +346,36 @@ export default function Produtos() {
               <label style={s.label}>URL da Imagem</label>
               <input style={s.inputFull} value={formImage} onChange={e => setFormImage(e.target.value)} placeholder="https://..." />
             </div>
+
+            {Object.keys(formTamanhos).length > 0 && (
+              <>
+                <p style={s.sectionTitle}>Numeros Disponiveis</p>
+                <div style={s.tamanhosGrid}>
+                  {Object.keys(formTamanhos).map(tamanho => (
+                    <div key={tamanho}>
+                      <label style={s.label}>Nr {tamanho}</label>
+                      <input
+                        style={s.inputFull}
+                        type="number"
+                        min="0"
+                        value={formTamanhos[tamanho]}
+                        onChange={e => setFormTamanhos(prev => ({ ...prev, [tamanho]: e.target.value }))}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div style={s.fg}>
+                  <label style={s.label}>Quantidade Total</label>
+                  <input
+                    style={{ ...s.inputFull, backgroundColor: "#f9fafb" }}
+                    value={calcularTotal(formTamanhos)}
+                    readOnly
+                  />
+                </div>
+              </>
+            )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
               <button onClick={fecharModal} style={{ ...s.btnPrimary, backgroundColor: "#f3f4f6", color: "#374151" }}>
