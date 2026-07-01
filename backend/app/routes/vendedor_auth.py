@@ -9,22 +9,20 @@ vendedor_auth_bp = Blueprint("vendedor_auth", __name__)
 
 
 def _get_vendedor_by_token(token: str):
-    """Valida o token do vendedor e retorna o objeto."""
     return Vendedor.query.filter_by(token=token, login_ativo=True).first()
 
 
 def _require_vendedor(request) -> tuple:
-    """Extrai e valida o token do vendedor do header."""
     token = request.headers.get("X-Vendedor-Token", "").strip()
     if not token:
-        return None, error_response("Token do vendedor não fornecido.", 401)
+        return None, error_response("Token do vendedor nao fornecido.", 401)
     v = _get_vendedor_by_token(token)
     if not v:
-        return None, error_response("Token inválido ou vendedor inativo.", 401)
+        return None, error_response("Token invalido ou vendedor inativo.", 401)
     return v, None
 
 
-# ── POST /api/vendedor-auth/login ─────────────────────────────────────────────
+# -- POST /api/vendedor-auth/login
 @vendedor_auth_bp.route("/login", methods=["POST"])
 def login_vendedor():
     try:
@@ -33,14 +31,14 @@ def login_vendedor():
         senha = data.get("senha", "")
 
         if not token or not senha:
-            return error_response("Token e senha são obrigatórios.", 400)
+            return error_response("Token e senha sao obrigatorios.", 400)
 
         vendedor = _get_vendedor_by_token(token)
         if not vendedor:
-            return error_response("Link inválido ou vendedor inativo.", 401)
+            return error_response("Link invalido ou vendedor inativo.", 401)
 
         if not vendedor.senha_hash:
-            return error_response("Senha não configurada. Solicite ao administrador.", 403)
+            return error_response("Senha nao configurada. Solicite ao administrador.", 403)
 
         if not check_password_hash(vendedor.senha_hash, senha):
             return error_response("Senha incorreta.", 401)
@@ -54,8 +52,7 @@ def login_vendedor():
         return error_response(str(e), 500)
 
 
-# ── GET /api/vendedor-auth/produtos ──────────────────────────────────────────
-# Retorna todos os produtos ativos (catálogo completo)
+# -- GET /api/vendedor-auth/produtos
 @vendedor_auth_bp.route("/produtos", methods=["GET"])
 def produtos_vendedor():
     try:
@@ -72,13 +69,15 @@ def produtos_vendedor():
         produtos = query.all()
         data = [
             {
-                "id":       p.id,
-                "name":     p.name,
-                "category": p.category,
-                "preco_varejo": float(p.preco_varejo or 0),
-                "tamanhos": p.tamanhos,
-                "quantity": p.quantity,
-                "image":    p.image,
+                "id":                  p.id,
+                "name":                p.name,
+                "category":            p.category,
+                "preco_varejo":        float(p.preco_varejo or 0),
+                "preco_atacado":       float(p.preco_atacado or 0),
+                "preco_dropshipping":  float(p.preco_dropshipping or 0),
+                "tamanhos":            p.tamanhos,
+                "quantity":            p.quantity,
+                "image":               p.image,
             }
             for p in produtos
             if p.quantity and p.quantity > 0
@@ -89,8 +88,7 @@ def produtos_vendedor():
         return error_response(str(e), 500)
 
 
-# ── GET /api/vendedor-auth/clientes ──────────────────────────────────────────
-# Retorna apenas os clientes criados por este vendedor
+# -- GET /api/vendedor-auth/clientes
 @vendedor_auth_bp.route("/clientes", methods=["GET"])
 def clientes_vendedor():
     try:
@@ -114,8 +112,7 @@ def clientes_vendedor():
         return error_response(str(e), 500)
 
 
-# ── POST /api/vendedor-auth/clientes ─────────────────────────────────────────
-# Vendedor cadastra um novo cliente (vinculado a ele)
+# -- POST /api/vendedor-auth/clientes
 @vendedor_auth_bp.route("/clientes", methods=["POST"])
 def criar_cliente_vendedor():
     try:
@@ -125,7 +122,7 @@ def criar_cliente_vendedor():
 
         data = request.get_json()
         if not data or not data.get("nome"):
-            return error_response("Nome é obrigatório.", 400)
+            return error_response("Nome e obrigatorio.", 400)
 
         cliente = Cliente(
             nome=data["nome"].strip(),
@@ -149,7 +146,7 @@ def criar_cliente_vendedor():
         return error_response(str(e), 500)
 
 
-# ── GET /api/vendedor-auth/me ─────────────────────────────────────────────────
+# -- GET /api/vendedor-auth/me
 @vendedor_auth_bp.route("/me", methods=["GET"])
 def me_vendedor():
     try:

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const API_URL = "https://sistema-estoque-tenis-backend.onrender.com/api"
+const API_URL = "https://sistema-estoque-tenis-backend.onrender.com/api";
 
 type Produto = {
   id: number;
   name: string;
+  category: string;
   preco_varejo: number;
+  preco_atacado: number;
+  preco_dropshipping: number;
   tamanhos: Record<string, string>;
+  quantity: number;
   image: string;
 };
 
@@ -19,23 +23,27 @@ type Cliente = {
   cidade: string | null;
 };
 
+function fmt(v: number) {
+  return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+}
+
 const s = {
-  page:        { fontFamily: "'Segoe UI', sans-serif", minHeight: "100vh", backgroundColor: "#f8fafc" } as React.CSSProperties,
-  header:      { backgroundColor: "#071633", color: "#fff", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" } as React.CSSProperties,
-  body:        { padding: "24px", maxWidth: "1100px", margin: "0 auto" } as React.CSSProperties,
-  card:        { backgroundColor: "#fff", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "24px" } as React.CSSProperties,
-  tabs:        { display: "flex", gap: "8px", marginBottom: "24px" } as React.CSSProperties,
-  tab:         (ativo: boolean) => ({ padding: "10px 20px", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", border: "none", backgroundColor: ativo ? "#071633" : "#f3f4f6", color: ativo ? "#fff" : "#374151" } as React.CSSProperties),
-  input:       { width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "14px", outline: "none", boxSizing: "border-box" as const } as React.CSSProperties,
-  label:       { display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" } as React.CSSProperties,
-  fg:          { marginBottom: "14px" } as React.CSSProperties,
-  btnPrimary:  { backgroundColor: "#071633", color: "#fff", border: "none", borderRadius: "8px", padding: "9px 18px", cursor: "pointer", fontWeight: 600, fontSize: "14px" } as React.CSSProperties,
-  btnSecondary:{ backgroundColor: "#f3f4f6", color: "#374151", border: "none", borderRadius: "8px", padding: "9px 18px", cursor: "pointer", fontWeight: 600, fontSize: "14px" } as React.CSSProperties,
-  table:       { width: "100%", borderCollapse: "collapse" as const, fontSize: "14px" } as React.CSSProperties,
-  th:          { textAlign: "left" as const, padding: "10px 12px", borderBottom: "2px solid #e5e7eb", color: "#6b7280", fontWeight: 600, fontSize: "12px", textTransform: "uppercase" as const } as React.CSSProperties,
-  td:          { padding: "12px", borderBottom: "1px solid #f3f4f6" } as React.CSSProperties,
-  overlay:     { position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } as React.CSSProperties,
-  modal:       { backgroundColor: "#fff", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
+  page:         { fontFamily: "'Segoe UI', sans-serif", minHeight: "100vh", backgroundColor: "#f8fafc" } as React.CSSProperties,
+  header:       { backgroundColor: "#071633", color: "#fff", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" } as React.CSSProperties,
+  body:         { padding: "24px", maxWidth: "1100px", margin: "0 auto" } as React.CSSProperties,
+  card:         { backgroundColor: "#fff", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "24px" } as React.CSSProperties,
+  tabs:         { display: "flex", gap: "8px", marginBottom: "24px" } as React.CSSProperties,
+  tab:          (ativo: boolean) => ({ padding: "10px 20px", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", border: "none", backgroundColor: ativo ? "#071633" : "#f3f4f6", color: ativo ? "#fff" : "#374151" } as React.CSSProperties),
+  input:        { width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "14px", outline: "none", boxSizing: "border-box" as const } as React.CSSProperties,
+  label:        { display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" } as React.CSSProperties,
+  fg:           { marginBottom: "14px" } as React.CSSProperties,
+  btnPrimary:   { backgroundColor: "#071633", color: "#fff", border: "none", borderRadius: "8px", padding: "9px 18px", cursor: "pointer", fontWeight: 600, fontSize: "14px" } as React.CSSProperties,
+  btnSecondary: { backgroundColor: "#f3f4f6", color: "#374151", border: "none", borderRadius: "8px", padding: "9px 18px", cursor: "pointer", fontWeight: 600, fontSize: "14px" } as React.CSSProperties,
+  table:        { width: "100%", borderCollapse: "collapse" as const, fontSize: "14px" } as React.CSSProperties,
+  th:           { textAlign: "left" as const, padding: "10px 12px", borderBottom: "2px solid #e5e7eb", color: "#6b7280", fontWeight: 600, fontSize: "12px", textTransform: "uppercase" as const } as React.CSSProperties,
+  td:           { padding: "12px", borderBottom: "1px solid #f3f4f6" } as React.CSSProperties,
+  overlay:      { position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } as React.CSSProperties,
+  modal:        { backgroundColor: "#fff", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
 };
 
 export default function VendedorPortal() {
@@ -49,7 +57,6 @@ export default function VendedorPortal() {
   const [busca, setBusca]       = useState("");
   const [loading, setLoading]   = useState(false);
 
-  // Modal novo cliente
   const [modalCliente, setModalCliente] = useState(false);
   const [formNome, setFormNome]         = useState("");
   const [formTel, setFormTel]           = useState("");
@@ -62,7 +69,6 @@ export default function VendedorPortal() {
     "X-Vendedor-Token": token || "",
   };
 
-  // Valida sessão
   useEffect(() => {
     const t = localStorage.getItem("vendedor_token");
     if (!t || t !== token) { navigate(`/vendedor/${token}`); return; }
@@ -92,7 +98,7 @@ export default function VendedorPortal() {
   };
 
   const criarCliente = async () => {
-    if (!formNome.trim()) { alert("Nome é obrigatório."); return; }
+    if (!formNome.trim()) { alert("Nome e obrigatorio."); return; }
     setSalvando(true);
     try {
       const res = await fetch(`${API_URL}/vendedor-auth/clientes`, {
@@ -125,12 +131,11 @@ export default function VendedorPortal() {
 
   return (
     <div style={s.page}>
-      {/* Header */}
       <header style={s.header}>
         <div>
-          <span style={{ fontSize: "20px", fontWeight: 800 }}>👟 Portal do Vendedor</span>
+          <span style={{ fontSize: "20px", fontWeight: 800 }}>Portal do Vendedor</span>
           <span style={{ marginLeft: "12px", fontSize: "14px", opacity: 0.8 }}>
-            Olá, {vendedorNome}!
+            Ola, {vendedorNome}!
           </span>
         </div>
         <button onClick={logout} style={{ ...s.btnSecondary, fontSize: "13px", padding: "7px 14px" }}>
@@ -139,17 +144,15 @@ export default function VendedorPortal() {
       </header>
 
       <div style={s.body}>
-        {/* Tabs */}
         <div style={s.tabs}>
           <button style={s.tab(aba === "produtos")} onClick={() => { setAba("produtos"); setBusca(""); }}>
-            📦 Produtos ({produtos.length})
+            Produtos ({produtos.length})
           </button>
           <button style={s.tab(aba === "clientes")} onClick={() => { setAba("clientes"); setBusca(""); }}>
-            👤 Meus Clientes ({clientes.length})
+            Meus Clientes ({clientes.length})
           </button>
         </div>
 
-        {/* Barra de busca */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
           <input
             style={{ ...s.input, maxWidth: "320px" }}
@@ -168,8 +171,7 @@ export default function VendedorPortal() {
           <p style={{ textAlign: "center", color: "#6b7280", padding: "40px" }}>Carregando...</p>
         ) : aba === "produtos" ? (
 
-          /* Grid de produtos */
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
             {produtosFiltrados.length === 0 ? (
               <p style={{ color: "#6b7280", gridColumn: "1/-1", textAlign: "center", padding: "32px" }}>
                 Nenhum produto encontrado.
@@ -185,12 +187,29 @@ export default function VendedorPortal() {
                       style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "12px" }}
                     />
                   )}
-                  <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#071633" }}>{p.name}</h3>
+                  <h3 style={{ margin: "0 0 10px", fontSize: "15px", color: "#071633" }}>{p.name}</h3>
 
-                  {/* Somente preço de venda — sem custo */}
-                  <p style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 700, color: "#16a34a" }}>
-                    R$ {Number(p.preco_varejo).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </p>
+                  {/* Precos de venda — sem custo */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "12px" }}>
+                    {p.preco_dropshipping > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                        <span style={{ color: "#7c3aed", fontWeight: 600 }}>Drop</span>
+                        <span style={{ color: "#7c3aed", fontWeight: 700 }}>R$ {fmt(p.preco_dropshipping)}</span>
+                      </div>
+                    )}
+                    {p.preco_atacado > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                        <span style={{ color: "#b45309", fontWeight: 600 }}>Atacado</span>
+                        <span style={{ color: "#b45309", fontWeight: 700 }}>R$ {fmt(p.preco_atacado)}</span>
+                      </div>
+                    )}
+                    {p.preco_varejo > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                        <span style={{ color: "#16a34a", fontWeight: 600 }}>Varejo</span>
+                        <span style={{ color: "#16a34a", fontWeight: 700 }}>R$ {fmt(p.preco_varejo)}</span>
+                      </div>
+                    )}
+                  </div>
 
                   {tamanhosDispo.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -205,7 +224,7 @@ export default function VendedorPortal() {
                     </div>
                   ) : (
                     <p style={{ margin: 0, fontSize: "12px", color: "#dc2626", fontWeight: 600 }}>
-                      Sem estoque disponível
+                      Sem estoque disponivel
                     </p>
                   )}
                 </div>
@@ -215,11 +234,10 @@ export default function VendedorPortal() {
 
         ) : (
 
-          /* Tabela de clientes */
           <div style={s.card}>
             {clientesFiltrados.length === 0 ? (
               <p style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>
-                {busca ? "Nenhum cliente encontrado." : "Você ainda não cadastrou nenhum cliente."}
+                {busca ? "Nenhum cliente encontrado." : "Voce ainda nao cadastrou nenhum cliente."}
               </p>
             ) : (
               <table style={s.table}>
@@ -239,9 +257,9 @@ export default function VendedorPortal() {
                       style={{ transition: "background 0.15s" }}
                     >
                       <td style={s.td}><strong>{c.nome}</strong></td>
-                      <td style={s.td}>{c.telefone ?? "—"}</td>
-                      <td style={s.td}>{c.email ?? "—"}</td>
-                      <td style={s.td}>{c.cidade ?? "—"}</td>
+                      <td style={s.td}>{c.telefone ?? "-"}</td>
+                      <td style={s.td}>{c.email ?? "-"}</td>
+                      <td style={s.td}>{c.cidade ?? "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -251,7 +269,6 @@ export default function VendedorPortal() {
         )}
       </div>
 
-      {/* Modal novo cliente */}
       {modalCliente && (
         <div style={s.overlay} onClick={() => setModalCliente(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
@@ -269,7 +286,7 @@ export default function VendedorPortal() {
               </div>
               <div style={s.fg}>
                 <label style={s.label}>Cidade</label>
-                <input style={s.input} value={formCidade} onChange={e => setFormCidade(e.target.value)} placeholder="São Paulo" />
+                <input style={s.input} value={formCidade} onChange={e => setFormCidade(e.target.value)} placeholder="Sao Paulo" />
               </div>
             </div>
 
