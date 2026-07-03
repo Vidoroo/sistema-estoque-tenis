@@ -10,10 +10,13 @@ pedidos_bp = Blueprint("pedidos", __name__)
 
 
 def _pedido_to_dict(p: Pedido) -> dict:
-    total = sum(
-        float(i.product.price or 0) * i.quantity
-        for i in p.itens if i.product
-    )
+    def _line_total(i):
+        preco = (float(i.unit_price) if getattr(i, "unit_price", None) is not None
+                 else float(i.product.price or 0) if i.product else 0)
+        desc  = float(getattr(i, "desconto", 0) or 0)
+        return preco * i.quantity * (1 - desc / 100)
+
+    total = sum(_line_total(i) for i in p.itens)
     separados = sum(i.quantity_separada for i in p.itens)
     total_itens = sum(i.quantity for i in p.itens)
     return {
@@ -37,7 +40,10 @@ def _pedido_to_dict(p: Pedido) -> dict:
                 "quantity":          i.quantity,
                 "quantity_separada": i.quantity_separada,
                 "concluido":         i.quantity_separada >= i.quantity,
-                "unit_price":        float(i.product.price or 0) if i.product else 0,
+                "unit_price":        (float(i.unit_price) if getattr(i, "unit_price", None) is not None
+                                      else float(i.product.price or 0) if i.product else 0),
+                "desconto":          float(getattr(i, "desconto", 0) or 0),
+                "subtotal":          _line_total(i),
             }
             for i in p.itens
         ],
@@ -123,8 +129,19 @@ def criar_pedido():
 
             if not product_id or not size or quantity <= 0:
                 return error_response("Cada item precisa de product_id, size e quantity.", 400)
-            if not Product.query.get(product_id):
+            produto = Product.query.get(product_id)
+            if not produto:
                 return error_response(f"Produto {product_id} não encontrado.", 404)
+
+            # Valor unitário: usa o enviado pelo front; se ausente, cai no preço do produto
+            unit_price = item.get("unit_price")
+            unit_price = float(unit_price) if unit_price is not None else float(produto.price or 0)
+            if unit_price < 0:
+                unit_price = 0.0
+
+            # Desconto %: limitado a 0–100
+            desconto = float(item.get("desconto", 0) or 0)
+            desconto = max(0.0, min(100.0, desconto))
 
             pi = PedidoItem(
                 pedido_id=pedido.id,
@@ -132,6 +149,8 @@ def criar_pedido():
                 size=size,
                 quantity=quantity,
                 quantity_separada=0,
+                unit_price=unit_price,
+                desconto=desconto,
             )
             db.session.add(pi)
 

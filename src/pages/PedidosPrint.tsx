@@ -5,6 +5,8 @@ type PedidoItem = {
   size: string;
   quantity: number;
   unit_price: number;
+  desconto?: number;
+  subtotal?: number;
   quantity_separada?: number;
 };
 
@@ -236,8 +238,16 @@ export default function PedidoPrint({ pedido, onClose, nomeEmpresa = "Estoque de
     day: "2-digit", month: "long", year: "numeric",
   });
 
-  const subtotal = pedido.itens.reduce((acc, i) => acc + i.unit_price * i.quantity, 0);
-  const totalItens = pedido.itens.reduce((acc, i) => acc + i.quantity, 0);
+  // Subtotal líquido do item: usa o valor vindo do backend; se ausente, calcula com o desconto
+  const subtotalItem = (i: PedidoItem) =>
+    i.subtotal !== undefined && i.subtotal !== null
+      ? i.subtotal
+      : i.unit_price * i.quantity * (1 - (i.desconto || 0) / 100);
+
+  const totalBruto    = pedido.itens.reduce((acc, i) => acc + i.unit_price * i.quantity, 0);
+  const totalLiquido  = pedido.itens.reduce((acc, i) => acc + subtotalItem(i), 0);
+  const totalDesconto = totalBruto - totalLiquido;
+  const totalItens    = pedido.itens.reduce((acc, i) => acc + i.quantity, 0);
 
   return (
     <>
@@ -323,7 +333,7 @@ export default function PedidoPrint({ pedido, onClose, nomeEmpresa = "Estoque de
               <table style={{ width: "100%", borderCollapse: "collapse" as const, marginBottom: "20px" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#071633", color: "#fff" }}>
-                    {["#", "Produto", "Tamanho", "Qtd.", "Valor Unit.", "Subtotal"].map((h, i) => (
+                    {["#", "Produto", "Tamanho", "Qtd.", "Valor Unit.", "Desc. %", "Subtotal"].map((h, i) => (
                       <th key={h} style={{
                         padding: "10px 12px", textAlign: i >= 3 ? "right" as const : "left" as const,
                         fontSize: "12px", fontWeight: 600,
@@ -343,8 +353,11 @@ export default function PedidoPrint({ pedido, onClose, nomeEmpresa = "Estoque de
                       <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", textAlign: "right" as const }}>
                         R$ {item.unit_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </td>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", textAlign: "right" as const, color: (item.desconto || 0) > 0 ? "#dc2626" : "#999" }}>
+                        {(item.desconto || 0) > 0 ? `${item.desconto}%` : "—"}
+                      </td>
                       <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", textAlign: "right" as const, fontWeight: 700 }}>
-                        R$ {(item.unit_price * item.quantity).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        R$ {subtotalItem(item).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
@@ -358,9 +371,19 @@ export default function PedidoPrint({ pedido, onClose, nomeEmpresa = "Estoque de
                     <span>Total de itens</span>
                     <span>{totalItens} pares</span>
                   </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #e5e7eb", fontSize: "13px", color: "#555" }}>
+                    <span>Subtotal</span>
+                    <span>R$ {totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {totalDesconto > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #e5e7eb", fontSize: "13px", color: "#dc2626" }}>
+                      <span>Desconto</span>
+                      <span>− R$ {totalDesconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0", fontSize: "17px", fontWeight: 800, color: "#071633" }}>
                     <span>TOTAL</span>
-                    <span>R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span>R$ {totalLiquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>

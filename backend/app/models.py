@@ -171,5 +171,7 @@ class PedidoItem(db.Model):
     size              = db.Column(db.String(10), nullable=False)
     quantity          = db.Column(db.Integer, nullable=False)
     quantity_separada = db.Column(db.Integer, default=0)
+    unit_price        = db.Column(db.Numeric(10, 2), nullable=True)
+    desconto          = db.Column(db.Numeric(5, 2), nullable=False, default=0)
     pedido            = db.relationship("Pedido",  backref="itens")
     product           = db.relationship("Product", backref="pedido_itens_list")

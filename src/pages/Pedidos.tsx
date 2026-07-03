@@ -5,7 +5,7 @@ import PedidoPrint from "./PedidosPrint";
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 type Cliente  = { id: number; nome: string };
 type Vendedor = { id: number; nome: string };
-type Produto  = { id: number; name: string; price: number; tamanhos: Record<string, string> };
+type Produto  = { id: number; codigo?: string; name: string; price: number; tamanhos: Record<string, string> };
 
 type PedidoItem = {
   id: number; product_id: number; product_name: string;
@@ -19,7 +19,7 @@ type Pedido = {
   itens: PedidoItem[];
 };
 
-type ItemForm = { product_id: number; size: string; quantity: number; nome: string };
+type ItemForm = { product_id: number; size: string; quantity: number; nome: string; unit_price: number; desconto: number };
 
 const STATUS_COR: Record<string, string> = {
   "Pendente": "#f59e0b", "Em Separação": "#2563eb",
@@ -94,6 +94,9 @@ export default function Pedidos() {
   const [formProdId,     setFormProdId]     = useState("");
   const [formSize,       setFormSize]       = useState("");
   const [formQty,        setFormQty]        = useState(1);
+  const [formPreco,      setFormPreco]      = useState(0);   // valor unitário editável
+  const [formDesc,       setFormDesc]       = useState(0);   // desconto % do item
+  const [buscaProduto,   setBuscaProduto]   = useState("");  // termo da busca (lupa)
   const [salvando,       setSalvando]       = useState(false);
 
   // Modal separação
@@ -135,6 +138,36 @@ export default function Pedidos() {
     ? Object.entries(produtoSelecionado.tamanhos || {})
     : [];
 
+  // Busca por descrição (nome) OU código — limita a 30 resultados
+  const produtosFiltrados = (() => {
+    const termo = buscaProduto.trim().toLowerCase();
+    if (!termo) return [];
+    return produtos
+      .filter(p =>
+        p.name.toLowerCase().includes(termo) ||
+        (p.codigo || "").toLowerCase().includes(termo)
+      )
+      .slice(0, 30);
+  })();
+
+  const selecionarProduto = (p: Produto) => {
+    setFormProdId(String(p.id));
+    setFormSize("");
+    setFormPreco(Number(p.price) || 0);  // pré-preenche o valor com o preço do produto
+    setBuscaProduto("");
+  };
+
+  // Subtotal de um item já considerando o desconto %
+  const subtotalItem = (it: ItemForm) =>
+    it.quantity * it.unit_price * (1 - (it.desconto || 0) / 100);
+
+  const totalPedidoForm = formItens.reduce((a, it) => a + subtotalItem(it), 0);
+
+  // Edição inline de um item já adicionado à lista
+  const atualizarItem = (i: number, campo: "quantity" | "unit_price" | "desconto", valor: number) => {
+    setFormItens(prev => prev.map((it, j) => (j === i ? { ...it, [campo]: valor } : it)));
+  };
+
   const adicionarItemForm = () => {
     if (!formProdId || !formSize || formQty <= 0) {
       alert("Selecione produto, tamanho e quantidade."); return;
@@ -143,12 +176,18 @@ export default function Pedidos() {
     const idx  = formItens.findIndex(i => i.product_id === Number(formProdId) && i.size === formSize);
     if (idx >= 0) {
       const novos = [...formItens];
-      novos[idx].quantity += formQty;
+      novos[idx].quantity  += formQty;
+      novos[idx].unit_price = formPreco;
+      novos[idx].desconto   = formDesc;
       setFormItens(novos);
     } else {
-      setFormItens(prev => [...prev, { product_id: Number(formProdId), size: formSize, quantity: formQty, nome: prod.name }]);
+      setFormItens(prev => [...prev, {
+        product_id: Number(formProdId), size: formSize, quantity: formQty,
+        nome: prod.name, unit_price: formPreco, desconto: formDesc,
+      }]);
     }
     setFormProdId(""); setFormSize(""); setFormQty(1);
+    setFormPreco(0); setFormDesc(0); setBuscaProduto("");
   };
 
   const criarPedido = async () => {
@@ -164,13 +203,17 @@ export default function Pedidos() {
           cliente_id:  Number(formClienteId),
           vendedor_id: Number(formVendedorId),
           observacoes: formObs,
-          itens: formItens.map(({ product_id, size, quantity }) => ({ product_id, size, quantity })),
+          itens: formItens.map(({ product_id, size, quantity, unit_price, desconto }) => ({
+            product_id, size, quantity, unit_price, desconto,
+          })),
         }),
       });
       const json = await res.json();
       if (!res.ok) { alert(json.message || "Erro."); return; }
       setModalNovo(false);
       setFormClienteId(""); setFormVendedorId(""); setFormObs(""); setFormItens([]);
+      setFormProdId(""); setFormSize(""); setFormQty(1);
+      setFormPreco(0); setFormDesc(0); setBuscaProduto("");
       carregar();
     } finally {
       setSalvando(false);
@@ -372,18 +415,65 @@ export default function Pedidos() {
             {/* Adicionar item */}
             <div style={{ backgroundColor: "#f9fafb", borderRadius: "10px", padding: "14px", marginBottom: "16px" }}>
               <p style={{ margin: "0 0 10px", fontWeight: 600, fontSize: "13px" }}>Adicionar item</p>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px auto", gap: "8px", alignItems: "flex-end" }}>
-                <div>
-                  <label style={s.label}>Produto</label>
-                  <select
-                    style={s.selectFull}
-                    value={formProdId}
-                    onChange={e => { setFormProdId(e.target.value); setFormSize(""); }}
-                  >
-                    <option value="">Selecione</option>
-                    {produtos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
+
+              {/* Busca de produto com lupa (por descrição ou código) */}
+              <div style={{ position: "relative", marginBottom: "10px" }}>
+                <label style={s.label}>Produto</label>
+                {produtoSelecionado ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: "8px", border: "1px solid #2563eb", backgroundColor: "#eff6ff" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#071633" }}>
+                      {produtoSelecionado.name}
+                      {produtoSelecionado.codigo && (
+                        <span style={{ color: "#6b7280", fontWeight: 400 }}> · {produtoSelecionado.codigo}</span>
+                      )}
+                    </span>
+                    <button
+                      style={{ ...s.btnSecondary, padding: "4px 10px", fontSize: "12px" }}
+                      onClick={() => { setFormProdId(""); setFormSize(""); setBuscaProduto(""); }}
+                    >
+                      trocar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", fontSize: "15px" }}>🔎</span>
+                      <input
+                        style={{ ...s.input, paddingLeft: "36px" }}
+                        value={buscaProduto}
+                        onChange={e => setBuscaProduto(e.target.value)}
+                        placeholder="Buscar por descrição ou código..."
+                      />
+                    </div>
+                    {buscaProduto.trim() && (
+                      <div style={{ position: "absolute", zIndex: 5, left: 0, right: 0, marginTop: "4px", backgroundColor: "#fff", border: "1px solid #d1d5db", borderRadius: "8px", maxHeight: "220px", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                        {produtosFiltrados.length === 0 ? (
+                          <div style={{ padding: "12px", color: "#6b7280", fontSize: "14px" }}>Nenhum produto encontrado.</div>
+                        ) : (
+                          produtosFiltrados.map(p => (
+                            <div
+                              key={p.id}
+                              onClick={() => selecionarProduto(p)}
+                              style={{ padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#fff")}
+                            >
+                              <div style={{ fontSize: "14px", fontWeight: 600, color: "#071633" }}>{p.name}</div>
+                              <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                                {p.codigo ? `Cód: ${p.codigo} · ` : ""}
+                                R$ {Number(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Tamanho / Qtd / Valor / Desconto / Add */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 110px 80px auto", gap: "8px", alignItems: "flex-end" }}>
                 <div>
                   <label style={s.label}>Tamanho</label>
                   <select
@@ -410,6 +500,31 @@ export default function Pedidos() {
                     onChange={e => setFormQty(Number(e.target.value))}
                   />
                 </div>
+                <div>
+                  <label style={s.label}>Valor (R$)</label>
+                  <input
+                    style={s.input}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formPreco}
+                    onChange={e => setFormPreco(Number(e.target.value))}
+                    disabled={!formProdId}
+                  />
+                </div>
+                <div>
+                  <label style={s.label}>Desc. %</label>
+                  <input
+                    style={s.input}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={formDesc}
+                    onChange={e => setFormDesc(Number(e.target.value))}
+                    disabled={!formProdId}
+                  />
+                </div>
                 <button style={{ ...s.btnPrimary, whiteSpace: "nowrap" as const }} onClick={adicionarItemForm}>
                   + Add
                 </button>
@@ -419,14 +534,40 @@ export default function Pedidos() {
             {formItens.length > 0 && (
               <table style={{ ...s.table, marginBottom: "16px" }}>
                 <thead>
-                  <tr>{["Produto", "Tam.", "Qtd.", ""].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{["Produto", "Tam.", "Qtd.", "Valor (R$)", "Desc. %", "Subtotal", ""].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {formItens.map((item, i) => (
                     <tr key={i}>
                       <td style={s.td}>{item.nome}</td>
                       <td style={s.td}>{item.size}</td>
-                      <td style={s.td}>{item.quantity}</td>
+                      <td style={s.td}>
+                        <input
+                          style={{ ...s.input, width: "60px", padding: "6px 8px" }}
+                          type="number" min="1"
+                          value={item.quantity}
+                          onChange={e => atualizarItem(i, "quantity", Math.max(1, Number(e.target.value)))}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          style={{ ...s.input, width: "90px", padding: "6px 8px" }}
+                          type="number" min="0" step="0.01"
+                          value={item.unit_price}
+                          onChange={e => atualizarItem(i, "unit_price", Math.max(0, Number(e.target.value)))}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          style={{ ...s.input, width: "64px", padding: "6px 8px" }}
+                          type="number" min="0" max="100" step="1"
+                          value={item.desconto}
+                          onChange={e => atualizarItem(i, "desconto", Math.min(100, Math.max(0, Number(e.target.value))))}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <strong>R$ {subtotalItem(item).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
+                      </td>
                       <td style={s.td}>
                         <button
                           style={s.btnDanger}
@@ -438,6 +579,15 @@ export default function Pedidos() {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td style={{ ...s.td, fontWeight: 700 }} colSpan={5}>Total do pedido</td>
+                    <td style={{ ...s.td, fontWeight: 700, color: "#16a34a" }}>
+                      R$ {totalPedidoForm.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={s.td} />
+                  </tr>
+                </tfoot>
               </table>
             )}
 
