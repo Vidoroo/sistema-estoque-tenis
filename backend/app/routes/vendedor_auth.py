@@ -73,6 +73,7 @@ def produtos_vendedor():
         data = [
             {
                 "id":                 p.id,
+                "codigo":             p.codigo,
                 "name":               p.name,
                 "category":           p.category,
                 "preco_varejo":       float(p.preco_varejo or 0),

@@ -66,7 +66,7 @@ const s = {
   th:           { textAlign: "left" as const, padding: "10px 12px", borderBottom: "2px solid #e5e7eb", color: "#6b7280", fontWeight: 600, fontSize: "12px", textTransform: "uppercase" as const } as React.CSSProperties,
   td:           { padding: "12px", borderBottom: "1px solid #f3f4f6" } as React.CSSProperties,
   overlay:      { position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } as React.CSSProperties,
-  modal:        { backgroundColor: "#fff", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
+  modal:        { backgroundColor: "#fff", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "580px", maxHeight: "90vh", overflowY: "auto" as const, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" } as React.CSSProperties,
 };
 
 export default function VendedorPortal() {
@@ -84,12 +84,16 @@ export default function VendedorPortal() {
   const [loading, setLoading]   = useState(false);
 
   // -- Modal novo cliente
-  const [modalCliente, setModalCliente] = useState(false);
-  const [formNome, setFormNome]         = useState("");
-  const [formTel, setFormTel]           = useState("");
-  const [formEmail, setFormEmail]       = useState("");
-  const [formCidade, setFormCidade]     = useState("");
-  const [salvando, setSalvando]         = useState(false);
+  const [modalCliente, setModalCliente]       = useState(false);
+  const [formNome, setFormNome]               = useState("");
+  const [formTel, setFormTel]                 = useState("");
+  const [formEmail, setFormEmail]             = useState("");
+  const [formCep, setFormCep]                 = useState("");
+  const [formEndereco, setFormEndereco]       = useState("");
+  const [formBairro, setFormBairro]           = useState("");
+  const [formCidade, setFormCidade]           = useState("");
+  const [formComplemento, setFormComplemento] = useState("");
+  const [salvando, setSalvando]               = useState(false);
 
   // -- Formulario de venda
   const [clienteVendaId, setClienteVendaId] = useState("");
@@ -143,12 +147,22 @@ export default function VendedorPortal() {
       const res = await fetch(`${API_URL}/vendedor-auth/clientes`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ nome: formNome, telefone: formTel || null, email: formEmail || null, cidade: formCidade || null }),
+        body: JSON.stringify({
+          nome:        formNome,
+          telefone:    formTel || null,
+          email:       formEmail || null,
+          cep:         formCep || null,
+          endereco:    formEndereco || null,
+          bairro:      formBairro || null,
+          cidade:      formCidade || null,
+          complemento: formComplemento || null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) { alert(json.message || "Erro ao cadastrar."); return; }
       setModalCliente(false);
-      setFormNome(""); setFormTel(""); setFormEmail(""); setFormCidade("");
+      setFormNome(""); setFormTel(""); setFormEmail("");
+      setFormCep(""); setFormEndereco(""); setFormBairro(""); setFormCidade(""); setFormComplemento("");
       carregar();
     } finally {
       setSalvando(false);
@@ -492,23 +506,48 @@ export default function VendedorPortal() {
         <div style={s.overlay} onClick={() => setModalCliente(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 20px", color: "#071633" }}>Novo Cliente</h2>
+
             <div style={s.fg}>
               <label style={s.label}>Nome *</label>
               <input style={s.input} value={formNome} onChange={e => setFormNome(e.target.value)} placeholder="Nome completo" autoFocus />
             </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div style={s.fg}>
                 <label style={s.label}>Telefone</label>
                 <input style={s.input} value={formTel} onChange={e => setFormTel(e.target.value)} placeholder="(00) 00000-0000" />
               </div>
               <div style={s.fg}>
-                <label style={s.label}>Cidade</label>
-                <input style={s.input} value={formCidade} onChange={e => setFormCidade(e.target.value)} placeholder="Sao Paulo" />
+                <label style={s.label}>E-mail</label>
+                <input style={s.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="email@exemplo.com" />
               </div>
             </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={s.fg}>
+                <label style={s.label}>CEP</label>
+                <input style={s.input} value={formCep} onChange={e => setFormCep(e.target.value)} placeholder="00000-000" maxLength={9} />
+              </div>
+              <div style={s.fg}>
+                <label style={s.label}>Bairro</label>
+                <input style={s.input} value={formBairro} onChange={e => setFormBairro(e.target.value)} placeholder="Bairro" />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={s.fg}>
+                <label style={s.label}>Endereco</label>
+                <input style={s.input} value={formEndereco} onChange={e => setFormEndereco(e.target.value)} placeholder="Rua, numero" />
+              </div>
+              <div style={s.fg}>
+                <label style={s.label}>Complemento</label>
+                <input style={s.input} value={formComplemento} onChange={e => setFormComplemento(e.target.value)} placeholder="Apto, bloco..." />
+              </div>
+            </div>
+
             <div style={s.fg}>
-              <label style={s.label}>E-mail</label>
-              <input style={s.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="email@exemplo.com" />
+              <label style={s.label}>Cidade</label>
+              <input style={s.input} value={formCidade} onChange={e => setFormCidade(e.target.value)} placeholder="Cidade" />
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
               <button style={s.btnSecondary} onClick={() => setModalCliente(false)}>Cancelar</button>
