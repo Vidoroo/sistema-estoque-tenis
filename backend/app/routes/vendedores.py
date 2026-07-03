@@ -22,6 +22,11 @@ def _vendedor_dict(v: Vendedor) -> dict:
         "nome":                v.nome,
         "telefone":            v.telefone,
         "email":               v.email,
+        "cep":                 v.cep,
+        "endereco":            v.endereco,
+        "bairro":              v.bairro,
+        "cidade":              v.cidade,
+        "complemento":         v.complemento,
         "percentual_comissao": float(v.percentual_comissao or 0),
         "meta_mensal":         float(v.meta_mensal or 0),
         "status":              v.status,
@@ -33,14 +38,12 @@ def _vendedor_dict(v: Vendedor) -> dict:
     }
 
 
-# -- GET /api/vendedores/
 @vendedores_bp.route("/", methods=["GET"])
 def listar_vendedores():
     vendedores = Vendedor.query.order_by(Vendedor.created_at.desc()).all()
     return success_response("Vendedores listados.", [_vendedor_dict(v) for v in vendedores])
 
 
-# -- POST /api/vendedores/
 @vendedores_bp.route("/", methods=["POST"])
 def criar_vendedor():
     try:
@@ -57,6 +60,11 @@ def criar_vendedor():
             nome=nome,
             telefone=data.get("telefone") or None,
             email=data.get("email") or None,
+            cep=data.get("cep") or None,
+            endereco=data.get("endereco") or None,
+            bairro=data.get("bairro") or None,
+            cidade=data.get("cidade") or None,
+            complemento=data.get("complemento") or None,
             percentual_comissao=data.get("percentual_comissao", 0) or 0,
             meta_mensal=data.get("meta_mensal", 0) or 0,
             status=data.get("status", "Ativo") or "Ativo",
@@ -65,14 +73,12 @@ def criar_vendedor():
         )
         db.session.add(vendedor)
         db.session.commit()
-
         return success_response("Vendedor cadastrado.", _vendedor_dict(vendedor), 201)
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
 
 
-# -- PUT /api/vendedores/<id>
 @vendedores_bp.route("/<int:vendedor_id>", methods=["PUT"])
 def atualizar_vendedor(vendedor_id):
     try:
@@ -84,6 +90,11 @@ def atualizar_vendedor(vendedor_id):
         v.nome                = data.get("nome", v.nome)
         v.telefone            = data.get("telefone", v.telefone)
         v.email               = data.get("email", v.email)
+        v.cep                 = data.get("cep", v.cep)
+        v.endereco            = data.get("endereco", v.endereco)
+        v.bairro              = data.get("bairro", v.bairro)
+        v.cidade              = data.get("cidade", v.cidade)
+        v.complemento         = data.get("complemento", v.complemento)
         v.percentual_comissao = data.get("percentual_comissao", v.percentual_comissao)
         v.meta_mensal         = data.get("meta_mensal", v.meta_mensal)
         v.status              = data.get("status", v.status)
@@ -96,7 +107,6 @@ def atualizar_vendedor(vendedor_id):
         return error_response(str(e), 500)
 
 
-# -- POST /api/vendedores/<id>/senha
 @vendedores_bp.route("/<int:vendedor_id>/senha", methods=["POST"])
 def definir_senha_vendedor(vendedor_id):
     try:
@@ -111,14 +121,12 @@ def definir_senha_vendedor(vendedor_id):
 
         v.senha_hash = generate_password_hash(senha)
         db.session.commit()
-
         return success_response("Senha definida com sucesso.")
     except Exception as e:
         db.session.rollback()
         return error_response(str(e), 500)
 
 
-# -- POST /api/vendedores/<id>/regenerar-token
 @vendedores_bp.route("/<int:vendedor_id>/regenerar-token", methods=["POST"])
 def regenerar_token(vendedor_id):
     try:
@@ -132,7 +140,6 @@ def regenerar_token(vendedor_id):
 
         v.token = novo_token
         db.session.commit()
-
         return success_response("Token regenerado.", {
             "token":       v.token,
             "link_portal": f"{FRONTEND_URL}/vendedor/{v.token}",
@@ -142,7 +149,6 @@ def regenerar_token(vendedor_id):
         return error_response(str(e), 500)
 
 
-# -- DELETE /api/vendedores/<id>
 @vendedores_bp.route("/<int:vendedor_id>", methods=["DELETE"])
 def excluir_vendedor(vendedor_id):
     try:
