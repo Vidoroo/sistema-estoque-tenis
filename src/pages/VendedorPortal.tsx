@@ -6,6 +6,7 @@ const API_URL = "https://sistema-estoque-tenis-backend.onrender.com/api";
 // -- Tipos
 type Produto = {
   id: number;
+  codigo?: string | null;
   name: string;
   category: string;
   preco_varejo: number;
@@ -233,7 +234,10 @@ export default function VendedorPortal() {
   };
 
   // -- Filtros por aba
-  const produtosFiltrados = produtos.filter(p => p.name.toLowerCase().includes(busca.toLowerCase()));
+  const produtosFiltrados = produtos.filter(p => {
+    const termo = busca.toLowerCase();
+    return p.name.toLowerCase().includes(termo) || (p.codigo || "").toLowerCase().includes(termo);
+  });
   const clientesFiltrados = clientes.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()));
 
   return (
@@ -291,7 +295,14 @@ export default function VendedorPortal() {
                   {p.image && (
                     <img src={p.image} alt={p.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "12px" }} />
                   )}
-                  <h3 style={{ margin: "0 0 10px", fontSize: "15px", color: "#071633" }}>{p.name}</h3>
+                  <div style={{ marginBottom: "10px" }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", color: "#071633" }}>{p.name}</h3>
+                    {p.codigo && (
+                      <div style={{ marginTop: "2px", fontSize: "12px", color: "#6b7280", fontWeight: 600 }}>
+                        Cod: {p.codigo}
+                      </div>
+                    )}
+                  </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "12px" }}>
                     {p.preco_dropshipping > 0 && (
@@ -392,7 +403,7 @@ export default function VendedorPortal() {
                     <label style={s.label}>Produto</label>
                     <select style={s.select} value={produtoId} onChange={e => { setProdutoId(e.target.value); setSize(""); }}>
                       <option value="">Selecione o produto</option>
-                      {produtos.map(p => <option key={p.id} value={p.id}>{p.name} — R$ {fmt(p.preco_varejo)}</option>)}
+                      {produtos.map(p => <option key={p.id} value={p.id}>{p.codigo ? `[${p.codigo}] ` : ""}{p.name} — R$ {fmt(p.preco_varejo)}</option>)}
                     </select>
                   </div>
                   <div>
