@@ -82,6 +82,7 @@ export default function VendedorPortal() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendas, setVendas]     = useState<VendaHistorico[]>([]);
   const [busca, setBusca]       = useState("");
+  const [buscaVenda, setBuscaVenda] = useState("");   // busca do formulario de venda
   const [loading, setLoading]   = useState(false);
 
   // -- Modal novo cliente
@@ -172,6 +173,24 @@ export default function VendedorPortal() {
 
   // -- Logica de venda
   const produtoSelecionado = produtos.find(p => String(p.id) === produtoId);
+
+  // Busca do formulario de venda: por nome OU codigo (max 30 resultados)
+  const produtosBusca = (() => {
+    const termo = buscaVenda.trim().toLowerCase();
+    if (!termo) return [];
+    return produtos
+      .filter(p =>
+        p.name.toLowerCase().includes(termo) ||
+        (p.codigo || "").toLowerCase().includes(termo)
+      )
+      .slice(0, 30);
+  })();
+
+  const escolherProduto = (p: Produto) => {
+    setProdutoId(String(p.id));
+    setSize("");
+    setBuscaVenda("");
+  };
   const tamanhosDisponiveis = produtoSelecionado
     ? Object.entries(produtoSelecionado.tamanhos || {}).filter(([, q]) => Number(q) > 0)
     : [];
@@ -197,7 +216,7 @@ export default function VendedorPortal() {
         unit_price: produto.preco_varejo,
       }]);
     }
-    setProdutoId(""); setSize(""); setQuantity(1);
+    setProdutoId(""); setSize(""); setQuantity(1); setBuscaVenda("");
   };
 
   const removerItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
@@ -398,14 +417,63 @@ export default function VendedorPortal() {
               {/* Adicionar item */}
               <div style={{ backgroundColor: "#f9fafb", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
                 <p style={{ margin: "0 0 12px", fontWeight: 600, fontSize: "14px", color: "#374151" }}>Adicionar Item</p>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "10px", alignItems: "flex-end" }}>
-                  <div>
-                    <label style={s.label}>Produto</label>
-                    <select style={s.select} value={produtoId} onChange={e => { setProdutoId(e.target.value); setSize(""); }}>
-                      <option value="">Selecione o produto</option>
-                      {produtos.map(p => <option key={p.id} value={p.id}>{p.codigo ? `[${p.codigo}] ` : ""}{p.name} — R$ {fmt(p.preco_varejo)}</option>)}
-                    </select>
-                  </div>
+                {/* Busca de produto por nome ou codigo */}
+                <div style={{ position: "relative", marginBottom: "10px" }}>
+                  <label style={s.label}>Produto</label>
+                  {produtoSelecionado ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "10px 12px", borderRadius: "8px", border: "1px solid #2563eb", backgroundColor: "#eff6ff" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: "#071633" }}>
+                        {produtoSelecionado.codigo && (
+                          <span style={{ color: "#6b7280", fontWeight: 400 }}>[{produtoSelecionado.codigo}] </span>
+                        )}
+                        {produtoSelecionado.name}
+                        <span style={{ color: "#16a34a", fontWeight: 700 }}> — R$ {fmt(produtoSelecionado.preco_varejo)}</span>
+                      </span>
+                      <button
+                        style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", border: "1px solid #d1d5db", backgroundColor: "#fff", color: "#374151", cursor: "pointer", whiteSpace: "nowrap" as const }}
+                        onClick={() => { setProdutoId(""); setSize(""); setBuscaVenda(""); }}
+                      >
+                        trocar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", fontSize: "15px" }}>🔎</span>
+                        <input
+                          style={{ ...s.input, paddingLeft: "36px" }}
+                          value={buscaVenda}
+                          onChange={e => setBuscaVenda(e.target.value)}
+                          placeholder="Buscar produto por nome ou codigo..."
+                        />
+                      </div>
+                      {buscaVenda.trim() && (
+                        <div style={{ position: "absolute", zIndex: 20, left: 0, right: 0, marginTop: "4px", backgroundColor: "#fff", border: "1px solid #d1d5db", borderRadius: "8px", maxHeight: "240px", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                          {produtosBusca.length === 0 ? (
+                            <div style={{ padding: "12px", color: "#6b7280", fontSize: "14px" }}>Nenhum produto encontrado.</div>
+                          ) : (
+                            produtosBusca.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => escolherProduto(p)}
+                                style={{ padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
+                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#fff")}
+                              >
+                                <div style={{ fontSize: "14px", fontWeight: 600, color: "#071633" }}>{p.name}</div>
+                                <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                                  {p.codigo ? `Cod: ${p.codigo} · ` : ""}R$ {fmt(p.preco_varejo)}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "flex-end" }}>
                   <div>
                     <label style={s.label}>Tamanho</label>
                     <select style={s.select} value={size} onChange={e => setSize(e.target.value)} disabled={!produtoId}>
