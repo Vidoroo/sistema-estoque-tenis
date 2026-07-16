@@ -25,12 +25,16 @@ type Cliente = {
   cidade: string | null;
 };
 
+type Faixa = "varejo" | "atacado" | "drop";
+
 type ItemVenda = {
   product_id: number;
   nome: string;
   size: string;
   quantity: number;
-  unit_price: number;
+  faixa: Faixa;        // o vendedor escolhe a faixa, nao digita o valor
+  unit_price: number;  // so p/ exibir: o valor oficial e resolvido no backend
+  desconto: number;
 };
 
 type VendaHistorico = {
@@ -103,6 +107,8 @@ export default function VendedorPortal() {
   const [produtoId, setProdutoId]           = useState("");
   const [size, setSize]                     = useState("");
   const [quantity, setQuantity]             = useState(1);
+  const [faixaVenda, setFaixaVenda]         = useState<Faixa>("varejo");
+  const [descVenda, setDescVenda]           = useState(0);
   const [obsVenda, setObsVenda]             = useState("");
   const [salvandoVenda, setSalvandoVenda]   = useState(false);
 
@@ -186,10 +192,33 @@ export default function VendedorPortal() {
       .slice(0, 30);
   })();
 
+  // Preco do produto numa faixa (Varejo / Atacado / Dropshipping)
+  const precoDaFaixa = (p: Produto | undefined, f: Faixa): number => {
+    if (!p) return 0;
+    if (f === "atacado") return Number(p.preco_atacado) || 0;
+    if (f === "drop")    return Number(p.preco_dropshipping) || 0;
+    return Number(p.preco_varejo) || 0;
+  };
+
   const escolherProduto = (p: Produto) => {
     setProdutoId(String(p.id));
     setSize("");
+    setFaixaVenda("varejo");
+    setDescVenda(0);
     setBuscaVenda("");
+  };
+
+  const aplicarFaixaVenda = (f: Faixa) => setFaixaVenda(f);
+
+  const rotuloFaixa = (f: Faixa) => (f === "atacado" ? "Atacado" : f === "drop" ? "Drop" : "Varejo");
+
+  // Subtotal do item ja com desconto
+  const subtotalItem = (i: ItemVenda) =>
+    i.quantity * i.unit_price * (1 - (i.desconto || 0) / 100);
+
+  // Edicao inline na tabela de itens
+  const atualizarItem = (idx: number, campo: "quantity" | "desconto", valor: number) => {
+    setItens(prev => prev.map((it, j) => (j === idx ? { ...it, [campo]: valor } : it)));
   };
   const tamanhosDisponiveis = produtoSelecionado
     ? Object.entries(produtoSelecionado.tamanhos || {}).filter(([, q]) => Number(q) > 0)
@@ -205,7 +234,10 @@ export default function VendedorPortal() {
     const existe = itens.findIndex(i => i.product_id === Number(produtoId) && i.size === size);
     if (existe >= 0) {
       const novos = [...itens];
-      novos[existe].quantity += quantity;
+      novos[existe].quantity  += quantity;
+      novos[existe].faixa      = faixaVenda;
+      novos[existe].unit_price = precoDaFaixa(produto, faixaVenda);
+      novos[existe].desconto   = descVenda;
       setItens(novos);
     } else {
       setItens(prev => [...prev, {
@@ -213,15 +245,18 @@ export default function VendedorPortal() {
         nome: produto.name,
         size,
         quantity,
-        unit_price: produto.preco_varejo,
+        faixa: faixaVenda,
+        unit_price: precoDaFaixa(produto, faixaVenda),
+        desconto: descVenda,
       }]);
     }
-    setProdutoId(""); setSize(""); setQuantity(1); setBuscaVenda("");
+    setProdutoId(""); setSize(""); setQuantity(1);
+    setDescVenda(0); setFaixaVenda("varejo"); setBuscaVenda("");
   };
 
   const removerItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
-  const subtotal = itens.reduce((acc, i) => acc + i.unit_price * i.quantity, 0);
+  const subtotal = itens.reduce((acc, i) => acc + subtotalItem(i), 0);
 
   const finalizarVenda = async () => {
     if (!clienteVendaId) { alert("Selecione o cliente."); return; }
@@ -235,7 +270,9 @@ export default function VendedorPortal() {
         body: JSON.stringify({
           cliente_id: Number(clienteVendaId),
           observacoes: obsVenda || null,
-          itens: itens.map(({ product_id, size, quantity }) => ({ product_id, size, quantity })),
+          itens: itens.map(({ product_id, size, quantity, faixa, desconto }) => ({
+            product_id, size, quantity, faixa, desconto,
+          })),
         }),
       });
       const json = await res.json();
@@ -243,6 +280,7 @@ export default function VendedorPortal() {
 
       // Reset formulario
       setClienteVendaId(""); setItens([]); setProdutoId(""); setSize(""); setQuantity(1); setObsVenda("");
+      setDescVenda(0); setFaixaVenda("varejo"); setBuscaVenda("");
       carregar();
       alert("Venda registrada com sucesso!");
     } catch {
@@ -473,7 +511,37 @@ export default function VendedorPortal() {
                   )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "flex-end" }}>
+                {/* Faixa de preco */}
+                {produtoSelecionado && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" as const }}>
+                    <span style={{ ...s.label, margin: 0 }}>Faixa:</span>
+                    {([
+                      { k: "varejo"  as Faixa, rot: "Varejo"  },
+                      { k: "atacado" as Faixa, rot: "Atacado" },
+                      { k: "drop"    as Faixa, rot: "Drop"    },
+                    ]).map(({ k, rot }) => {
+                      const ativo = faixaVenda === k;
+                      const val   = precoDaFaixa(produtoSelecionado, k);
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => aplicarFaixaVenda(k)}
+                          style={{
+                            padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px",
+                            fontWeight: 600,
+                            border: ativo ? "1px solid #071633" : "1px solid #d1d5db",
+                            backgroundColor: ativo ? "#071633" : "#fff",
+                            color: ativo ? "#fff" : "#374151",
+                          }}
+                        >
+                          {rot} · R$ {fmt(val)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 80px auto", gap: "10px", alignItems: "flex-end" }}>
                   <div>
                     <label style={s.label}>Tamanho</label>
                     <select style={s.select} value={size} onChange={e => setSize(e.target.value)} disabled={!produtoId}>
@@ -486,6 +554,15 @@ export default function VendedorPortal() {
                   <div>
                     <label style={s.label}>Qtd.</label>
                     <input style={s.input} type="number" min="1" value={quantity} onChange={e => setQuantity(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <label style={s.label}>Desc. %</label>
+                    <input
+                      style={s.input} type="number" min="0" max="100" step="1"
+                      value={descVenda}
+                      onChange={e => setDescVenda(Math.min(100, Math.max(0, Number(e.target.value))))}
+                      disabled={!produtoId}
+                    />
                   </div>
                   <button style={{ ...s.btnPrimary, whiteSpace: "nowrap" as const }} onClick={adicionarItem}>
                     + Adicionar
@@ -500,7 +577,7 @@ export default function VendedorPortal() {
                   <table style={s.table}>
                     <thead>
                       <tr>
-                        {["Produto", "Tamanho", "Qtd.", "Preco Unit.", "Subtotal", ""].map(h => <th key={h} style={s.th}>{h}</th>)}
+                        {["Produto", "Tamanho", "Qtd.", "Faixa", "Valor", "Desc. %", "Subtotal", ""].map(h => <th key={h} style={s.th}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -509,8 +586,21 @@ export default function VendedorPortal() {
                           <td style={s.td}>{item.nome}</td>
                           <td style={s.td}>{item.size}</td>
                           <td style={s.td}>{item.quantity}</td>
+                          <td style={s.td}>
+                            <span style={{ fontSize: "12px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8" }}>
+                              {rotuloFaixa(item.faixa)}
+                            </span>
+                          </td>
                           <td style={s.td}>R$ {fmt(item.unit_price)}</td>
-                          <td style={s.td}><strong>R$ {fmt(item.unit_price * item.quantity)}</strong></td>
+                          <td style={s.td}>
+                            <input
+                              style={{ ...s.input, width: "64px", padding: "6px 8px" }}
+                              type="number" min="0" max="100" step="1"
+                              value={item.desconto}
+                              onChange={e => atualizarItem(index, "desconto", Math.min(100, Math.max(0, Number(e.target.value))))}
+                            />
+                          </td>
+                          <td style={s.td}><strong>R$ {fmt(subtotalItem(item))}</strong></td>
                           <td style={s.td}>
                             <button style={s.btnDanger} onClick={() => removerItem(index)}>Remover</button>
                           </td>

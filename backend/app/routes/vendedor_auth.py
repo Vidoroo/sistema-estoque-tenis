@@ -200,8 +200,11 @@ def criar_venda_vendedor():
             return error_response("Cliente nao encontrado.", 404)
 
         # Valida produtos e calcula total
-        valor_total = 0.0
+        valor_total = 0.0   # liquido (com desconto) - e o que o cliente paga
+        valor_bruto = 0.0   # sem desconto - base da comissao do vendedor
         itens_processados = []
+
+        FAIXAS = ("varejo", "atacado", "drop")
 
         for item in itens:
             produto = Product.query.get(item.get("product_id"))
@@ -218,8 +221,25 @@ def criar_venda_vendedor():
                     f"Estoque insuficiente para {produto.name} nr {size}. Disponivel: {estoque_size}.", 400
                 )
 
-            unit_price = float(produto.preco_varejo or 0)
-            subtotal   = unit_price * qty
+            # O vendedor escolhe a FAIXA; o preco vem do banco (nunca do cliente).
+            faixa = str(item.get("faixa", "varejo")).lower()
+            if faixa not in FAIXAS:
+                return error_response(f"Faixa de preco invalida: {faixa}.", 400)
+
+            if faixa == "atacado":
+                unit_price = float(produto.preco_atacado or 0)
+            elif faixa == "drop":
+                unit_price = float(produto.preco_dropshipping or 0)
+            else:
+                unit_price = float(produto.preco_varejo or 0)
+
+            # Desconto % do item, limitado a 0-100
+            desconto = float(item.get("desconto", 0) or 0)
+            desconto = max(0.0, min(100.0, desconto))
+
+            bruto    = unit_price * qty
+            subtotal = bruto * (1 - desconto / 100)
+            valor_bruto += bruto
             valor_total += subtotal
 
             itens_processados.append({
@@ -227,12 +247,15 @@ def criar_venda_vendedor():
                 "size":       size,
                 "quantity":   qty,
                 "unit_price": unit_price,
+                "desconto":   desconto,
                 "subtotal":   subtotal,
             })
 
         # Cria a venda
-        comissao_pct  = float(v.percentual_comissao or 0)
-        valor_comissao = valor_total * (comissao_pct / 100)
+        # Comissao calculada sobre o valor CHEIO (sem desconto):
+        # o desconto concedido ao cliente nao reduz a comissao do vendedor.
+        comissao_pct   = float(v.percentual_comissao or 0)
+        valor_comissao = valor_bruto * (comissao_pct / 100)
 
         venda = Venda(
             cliente_id=cliente_id,
@@ -253,6 +276,7 @@ def criar_venda_vendedor():
                 size=item["size"],
                 quantity=item["quantity"],
                 unit_price=item["unit_price"],
+                desconto=item["desconto"],
                 subtotal=item["subtotal"],
             )
             db.session.add(vi)

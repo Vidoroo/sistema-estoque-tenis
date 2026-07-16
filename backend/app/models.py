@@ -113,6 +113,7 @@ class VendaItem(db.Model):
     size = db.Column(db.String(10), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    desconto = db.Column(db.Numeric(5, 2), nullable=False, default=0)
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)
 
     venda = db.relationship("Venda", backref="itens")
