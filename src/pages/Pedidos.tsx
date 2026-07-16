@@ -5,7 +5,12 @@ import PedidoPrint from "./PedidosPrint";
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 type Cliente  = { id: number; nome: string };
 type Vendedor = { id: number; nome: string };
-type Produto  = { id: number; codigo?: string; name: string; price: number; tamanhos: Record<string, string> };
+type Faixa    = "varejo" | "atacado" | "drop";
+type Produto  = {
+  id: number; codigo?: string; name: string; price: number;
+  preco_varejo?: number; preco_atacado?: number; preco_dropshipping?: number;
+  tamanhos: Record<string, string>;
+};
 
 type PedidoItem = {
   id: number; product_id: number; product_name: string;
@@ -95,6 +100,7 @@ export default function Pedidos() {
   const [formSize,       setFormSize]       = useState("");
   const [formQty,        setFormQty]        = useState(1);
   const [formPreco,      setFormPreco]      = useState(0);   // valor unitário editável
+  const [formFaixa,      setFormFaixa]      = useState<Faixa>("varejo"); // faixa de preço padrão
   const [formDesc,       setFormDesc]       = useState(0);   // desconto % do item
   const [buscaProduto,   setBuscaProduto]   = useState("");  // termo da busca (lupa)
   const [salvando,       setSalvando]       = useState(false);
@@ -150,11 +156,26 @@ export default function Pedidos() {
       .slice(0, 30);
   })();
 
+  // Preço do produto numa faixa (Varejo / Atacado / Dropshipping)
+  const precoDaFaixa = (p: Produto | undefined, f: Faixa): number => {
+    if (!p) return 0;
+    if (f === "atacado") return Number(p.preco_atacado) || 0;
+    if (f === "drop")    return Number(p.preco_dropshipping) || 0;
+    return Number(p.preco_varejo) || 0;
+  };
+
   const selecionarProduto = (p: Produto) => {
     setFormProdId(String(p.id));
     setFormSize("");
-    setFormPreco(Number(p.price) || 0);  // pré-preenche o valor com o preço do produto
+    setFormFaixa("varejo");                       // padrão: varejo
+    setFormPreco(precoDaFaixa(p, "varejo"));
     setBuscaProduto("");
+  };
+
+  // Clique numa faixa: troca o valor do campo
+  const aplicarFaixa = (f: Faixa) => {
+    setFormFaixa(f);
+    setFormPreco(precoDaFaixa(produtoSelecionado, f));
   };
 
   // Subtotal de um item já considerando o desconto %
@@ -187,7 +208,7 @@ export default function Pedidos() {
       }]);
     }
     setFormProdId(""); setFormSize(""); setFormQty(1);
-    setFormPreco(0); setFormDesc(0); setBuscaProduto("");
+    setFormPreco(0); setFormDesc(0); setFormFaixa("varejo"); setBuscaProduto("");
   };
 
   const criarPedido = async () => {
@@ -213,7 +234,7 @@ export default function Pedidos() {
       setModalNovo(false);
       setFormClienteId(""); setFormVendedorId(""); setFormObs(""); setFormItens([]);
       setFormProdId(""); setFormSize(""); setFormQty(1);
-      setFormPreco(0); setFormDesc(0); setBuscaProduto("");
+      setFormPreco(0); setFormDesc(0); setFormFaixa("varejo"); setBuscaProduto("");
       carregar();
     } finally {
       setSalvando(false);
@@ -461,7 +482,7 @@ export default function Pedidos() {
                               <div style={{ fontSize: "14px", fontWeight: 600, color: "#071633" }}>{p.name}</div>
                               <div style={{ fontSize: "12px", color: "#6b7280" }}>
                                 {p.codigo ? `Cód: ${p.codigo} · ` : ""}
-                                R$ {Number(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                Varejo R$ {(Number(p.preco_varejo) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </div>
                             </div>
                           ))
@@ -471,6 +492,36 @@ export default function Pedidos() {
                   </>
                 )}
               </div>
+
+              {/* Faixa de preço */}
+              {produtoSelecionado && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                  <span style={{ ...s.label, margin: 0 }}>Faixa:</span>
+                  {([
+                    { k: "varejo"  as Faixa, rot: "Varejo"  },
+                    { k: "atacado" as Faixa, rot: "Atacado" },
+                    { k: "drop"    as Faixa, rot: "Drop"    },
+                  ]).map(({ k, rot }) => {
+                    const ativo = formFaixa === k;
+                    const val   = precoDaFaixa(produtoSelecionado, k);
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => aplicarFaixa(k)}
+                        style={{
+                          padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px",
+                          fontWeight: 600, transition: "all .15s",
+                          border: ativo ? "1px solid #2563eb" : "1px solid #d1d5db",
+                          backgroundColor: ativo ? "#2563eb" : "#fff",
+                          color: ativo ? "#fff" : "#374151",
+                        }}
+                      >
+                        {rot} · R$ {val.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Tamanho / Qtd / Valor / Desconto / Add */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 110px 80px auto", gap: "8px", alignItems: "flex-end" }}>
