@@ -46,6 +46,7 @@ function fmt(v: number) {
   return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 }
 
+const CATEGORIAS: string[] = ["Tênis", "Chinelo", "Óculos", "Boné", "Bermuda", "Camiseta", "Calça", "Acessório", "Roupa"];
 const GRADE_TENIS: string[] = ["34","35","36","37","38","39","40","41","42","43","44","45","46","47","48"];
 const GRADE_CHINELO: string[] = [
   "33/34","35/36","37/38","39/40","41/42","43/44",
@@ -332,7 +333,11 @@ export default function Produtos() {
 
             <div style={s.fg}>
               <label style={s.label}>Categoria</label>
-              <input style={s.inputFull} value={formCategory} onChange={e => { const nova = e.target.value; setFormCategory(nova); setFormTamanhos(prev => mesclarGrade(nova, prev)); }} />
+              <select style={s.inputFull} value={formCategory} onChange={e => { const nova = e.target.value; setFormCategory(nova); setFormTamanhos(prev => mesclarGrade(nova, prev)); }}>
+                <option value="">Selecione a categoria...</option>
+                {CATEGORIAS.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
+                {formCategory && !CATEGORIAS.includes(formCategory) && (<option value={formCategory}>{formCategory}</option>)}
+              </select>
             </div>
 
             <div style={{ ...s.fg, ...s.formRow }}>

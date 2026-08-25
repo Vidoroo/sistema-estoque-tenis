@@ -35,6 +35,9 @@ const GRADE_CHINELO: string[] = [
   "34/35","36/37","38/39","40/41","42/43","44/45",
 ];
 
+// Categorias validas do sistema (lista fechada — evita categorias digitadas erradas)
+const CATEGORIAS: string[] = ["Tênis", "Chinelo", "Óculos", "Boné", "Bermuda", "Camiseta", "Calça", "Acessório", "Roupa"];
+
 // Categorias que usam faixa de chinelo
 const CATS_CHINELO = ["chinelo"];
 
@@ -483,7 +486,7 @@ export default function CadastroProduto() {
             <div style={{ ...s.formGroup, ...s.formRow }}>
               <div>
                 <label style={s.label}>Categoria *</label>
-                <input
+                <select
                   style={s.formInput}
                   value={form.category}
                   onChange={(e) => {
@@ -498,8 +501,16 @@ export default function CadastroProduto() {
                     });
                     setForm({ ...form, category: novaCat, tamanhos: merged });
                   }}
-                  placeholder="Ex: Corrida"
-                />
+                >
+                  <option value="">Selecione a categoria...</option>
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  {/* Se o produto tiver uma categoria fora da lista, mostra p/ nao perder */}
+                  {form.category && !CATEGORIAS.includes(form.category) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+                </select>
               </div>
               <div>
                 <UploadImagem
