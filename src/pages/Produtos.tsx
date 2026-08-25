@@ -52,10 +52,20 @@ const GRADE_CHINELO: string[] = [
   "33/34","35/36","37/38","39/40","41/42","43/44",
   "34/35","36/37","38/39","40/41","42/43","44/45",
 ];
+const GRADE_ROUPA: string[] = ["P","M","G","GG","XG","G1","G2","G3","G4"];
+const GRADE_UNICO: string[] = ["UN"];
+const GRADES_POR_CATEGORIA: Record<string, string[]> = {
+  "tênis": GRADE_TENIS, "tenis": GRADE_TENIS,
+  "calça": GRADE_TENIS, "calca": GRADE_TENIS,
+  "chinelo": GRADE_CHINELO,
+  "camiseta": GRADE_ROUPA, "bermuda": GRADE_ROUPA, "roupa": GRADE_ROUPA,
+  "óculos": GRADE_UNICO, "oculos": GRADE_UNICO,
+  "boné": GRADE_UNICO, "bone": GRADE_UNICO,
+  "acessório": GRADE_UNICO, "acessorio": GRADE_UNICO,
+};
 function gradeDaCategoria(categoria: string): string[] {
   const cat = (categoria || "").toLowerCase().trim();
-  if (cat === "chinelo") return GRADE_CHINELO;
-  return GRADE_TENIS;
+  return GRADES_POR_CATEGORIA[cat] || GRADE_TENIS;
 }
 // Mescla a grade da categoria com os tamanhos que o produto ja tem salvos.
 // Garante que as faixas/numeros da grade aparecam (vazios), sem perder nada existente.
@@ -373,7 +383,7 @@ export default function Produtos() {
                 <div style={s.tamanhosGrid}>
                   {Object.keys(formTamanhos).map(tamanho => (
                     <div key={tamanho}>
-                      <label style={s.label}>{tamanho.includes("/") ? tamanho : `Nr ${tamanho}`}</label>
+                      <label style={s.label}>{/^[0-9]+$/.test(tamanho) ? `Nr ${tamanho}` : tamanho}</label>
                       <input
                         style={s.inputFull}
                         type="number"

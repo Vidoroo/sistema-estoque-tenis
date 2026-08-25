@@ -34,18 +34,34 @@ const GRADE_CHINELO: string[] = [
   // fileira 2 (comeca em par)
   "34/35","36/37","38/39","40/41","42/43","44/45",
 ];
+const GRADE_ROUPA: string[] = ["P","M","G","GG","XG","G1","G2","G3","G4"];
+const GRADE_UNICO: string[] = ["UN"];
 
 // Categorias validas do sistema (lista fechada — evita categorias digitadas erradas)
 const CATEGORIAS: string[] = ["Tênis", "Chinelo", "Óculos", "Boné", "Bermuda", "Camiseta", "Calça", "Acessório", "Roupa"];
 
-// Categorias que usam faixa de chinelo
-const CATS_CHINELO = ["chinelo"];
+// Grade de tamanhos por categoria (chave em minusculo)
+const GRADES_POR_CATEGORIA: Record<string, string[]> = {
+  "tênis":     GRADE_TENIS,
+  "tenis":     GRADE_TENIS,
+  "calça":     GRADE_TENIS,   // calca usa numeracao
+  "calca":     GRADE_TENIS,
+  "chinelo":   GRADE_CHINELO,
+  "camiseta":  GRADE_ROUPA,
+  "bermuda":   GRADE_ROUPA,
+  "roupa":     GRADE_ROUPA,
+  "óculos":    GRADE_UNICO,
+  "oculos":    GRADE_UNICO,
+  "boné":      GRADE_UNICO,
+  "bone":      GRADE_UNICO,
+  "acessório": GRADE_UNICO,
+  "acessorio": GRADE_UNICO,
+};
 
 // Retorna a lista de tamanhos que o cadastro deve oferecer p/ uma categoria
 function gradeDaCategoria(categoria: string): string[] {
   const c = (categoria || "").toLowerCase().trim();
-  if (CATS_CHINELO.includes(c)) return GRADE_CHINELO;
-  return GRADE_TENIS;
+  return GRADES_POR_CATEGORIA[c] || GRADE_TENIS;
 }
 
 // Monta um objeto de tamanhos vazio a partir de uma lista de chaves
@@ -603,10 +619,10 @@ export default function CadastroProduto() {
 
             <div style={s.tamanhosGrid}>
               {Object.keys(form.tamanhos).map((numero) => {
-                const ehFaixa = numero.includes("/");
+                const soNumero = /^[0-9]+$/.test(numero);  // 34, 35... => "Nr 34"; faixas/P/M/UN => rotulo direto
                 return (
                   <div key={numero}>
-                    <label style={s.label}>{ehFaixa ? numero : `Nr ${numero}`}</label>
+                    <label style={s.label}>{soNumero ? `Nr ${numero}` : numero}</label>
                     <input
                       style={s.formInput}
                       type="number"
