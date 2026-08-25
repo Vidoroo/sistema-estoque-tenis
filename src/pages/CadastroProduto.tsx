@@ -25,10 +25,33 @@ type Produto = ProdutoPayload & {
   tamanhos?: Record<string, string>;
 };
 
-const TAMANHOS_VAZIOS: Record<string, string> = {
-  "34": "", "35": "", "36": "", "37": "", "38": "",
-  "39": "", "40": "", "41": "", "42": "", "43": "", "44": "",
-};
+// Grades de numeracao por categoria.
+// Chinelo usa faixas (mostradas em 2 fileiras); Tenis usa numeros soltos 34-48.
+const GRADE_TENIS: string[] = ["34","35","36","37","38","39","40","41","42","43","44","45","46","47","48"];
+const GRADE_CHINELO: string[] = [
+  // fileira 1 (comeca em impar)
+  "33/34","35/36","37/38","39/40","41/42","43/44",
+  // fileira 2 (comeca em par)
+  "34/35","36/37","38/39","40/41","42/43","44/45",
+];
+
+// Categorias que usam faixa de chinelo
+const CATS_CHINELO = ["chinelo"];
+
+// Retorna a lista de tamanhos que o cadastro deve oferecer p/ uma categoria
+function gradeDaCategoria(categoria: string): string[] {
+  const c = (categoria || "").toLowerCase().trim();
+  if (CATS_CHINELO.includes(c)) return GRADE_CHINELO;
+  return GRADE_TENIS;
+}
+
+// Monta um objeto de tamanhos vazio a partir de uma lista de chaves
+function tamanhosVaziosDe(chaves: string[]): Record<string, string> {
+  return chaves.reduce((acc, k) => { acc[k] = ""; return acc; }, {} as Record<string, string>);
+}
+
+// Grade padrao inicial (Tenis) — usada antes de escolher categoria
+const TAMANHOS_VAZIOS: Record<string, string> = tamanhosVaziosDe(GRADE_TENIS);
 
 const EMPTY_FORM = {
   codigo: "",
@@ -72,7 +95,7 @@ const s = {
   formInput: { width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "14px", boxSizing: "border-box" as const, outline: "none" } as React.CSSProperties,
   formRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } as React.CSSProperties,
   imgThumb: { width: "48px", height: "48px", objectFit: "cover" as const, borderRadius: "8px", border: "1px solid #e5e7eb", backgroundColor: "#f9fafb" } as React.CSSProperties,
-  tamanhosGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "12px", marginBottom: "16px" } as React.CSSProperties,
+  tamanhosGrid: { display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "12px", marginBottom: "16px" } as React.CSSProperties,
 };
 
 function toNumber(value: string | number | undefined | null) {
@@ -248,14 +271,17 @@ export default function CadastroProduto() {
       fornecedor: p.fornecedor || "",
       chave_acesso: p.chave_acesso || "",
       observacoes_nf: p.observacoes_nf || "",
-      tamanhos: {
-        "34": p.tamanhos?.["34"] || "", "35": p.tamanhos?.["35"] || "",
-        "36": p.tamanhos?.["36"] || "", "37": p.tamanhos?.["37"] || "",
-        "38": p.tamanhos?.["38"] || "", "39": p.tamanhos?.["39"] || "",
-        "40": p.tamanhos?.["40"] || "", "41": p.tamanhos?.["41"] || "",
-        "42": p.tamanhos?.["42"] || "", "43": p.tamanhos?.["43"] || "",
-        "44": p.tamanhos?.["44"] || "",
-      },
+      tamanhos: (() => {
+        // Comeca pela grade da categoria do produto, depois sobrepoe TUDO que o
+        // produto tem salvo (inclui faixas, 45-48, ou tamanhos legados fora da grade).
+        const grade = gradeDaCategoria(p.category || "");
+        const base = tamanhosVaziosDe(grade);
+        const merged: Record<string, string> = { ...base };
+        Object.entries(p.tamanhos || {}).forEach(([k, v]) => {
+          merged[k] = v == null ? "" : String(v);
+        });
+        return merged;
+      })(),
     });
     setModalAberto(true);
   };
@@ -460,7 +486,18 @@ export default function CadastroProduto() {
                 <input
                   style={s.formInput}
                   value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  onChange={(e) => {
+                    const novaCat = e.target.value;
+                    const grade = gradeDaCategoria(novaCat);
+                    // Preserva estoque ja digitado; adiciona os tamanhos da nova grade;
+                    // mantem tambem qualquer tamanho ja existente que nao esteja na grade.
+                    const base = tamanhosVaziosDe(grade);
+                    const merged: Record<string, string> = { ...base };
+                    Object.entries(form.tamanhos).forEach(([k, v]) => {
+                      if (v !== "" && v != null) merged[k] = String(v);
+                    });
+                    setForm({ ...form, category: novaCat, tamanhos: merged });
+                  }}
                   placeholder="Ex: Corrida"
                 />
               </div>
@@ -554,19 +591,22 @@ export default function CadastroProduto() {
             <div style={s.sectionTitle}>Numeros Disponiveis</div>
 
             <div style={s.tamanhosGrid}>
-              {Object.keys(form.tamanhos).map((numero) => (
-                <div key={numero}>
-                  <label style={s.label}>Nr {numero}</label>
-                  <input
-                    style={s.formInput}
-                    type="number"
-                    min="0"
-                    value={form.tamanhos[numero as keyof typeof form.tamanhos]}
-                    onChange={(e) => setForm({ ...form, tamanhos: { ...form.tamanhos, [numero]: e.target.value } })}
-                    placeholder="0"
-                  />
-                </div>
-              ))}
+              {Object.keys(form.tamanhos).map((numero) => {
+                const ehFaixa = numero.includes("/");
+                return (
+                  <div key={numero}>
+                    <label style={s.label}>{ehFaixa ? numero : `Nr ${numero}`}</label>
+                    <input
+                      style={s.formInput}
+                      type="number"
+                      min="0"
+                      value={form.tamanhos[numero]}
+                      onChange={(e) => setForm({ ...form, tamanhos: { ...form.tamanhos, [numero]: e.target.value } })}
+                      placeholder="0"
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             <div style={s.formGroup}>

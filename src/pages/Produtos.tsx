@@ -46,6 +46,25 @@ function fmt(v: number) {
   return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 }
 
+const GRADE_TENIS: string[] = ["34","35","36","37","38","39","40","41","42","43","44","45","46","47","48"];
+const GRADE_CHINELO: string[] = [
+  "33/34","35/36","37/38","39/40","41/42","43/44",
+  "34/35","36/37","38/39","40/41","42/43","44/45",
+];
+function gradeDaCategoria(categoria: string): string[] {
+  const cat = (categoria || "").toLowerCase().trim();
+  if (cat === "chinelo") return GRADE_CHINELO;
+  return GRADE_TENIS;
+}
+// Mescla a grade da categoria com os tamanhos que o produto ja tem salvos.
+// Garante que as faixas/numeros da grade aparecam (vazios), sem perder nada existente.
+function mesclarGrade(categoria: string, existentes: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  gradeDaCategoria(categoria).forEach(k => { out[k] = ""; });
+  Object.entries(existentes || {}).forEach(([k, v]) => { out[k] = v == null ? "" : String(v); });
+  return out;
+}
+
 function calcularTotal(tamanhos: Record<string, string>) {
   return Object.values(tamanhos).reduce((acc, v) => acc + (Number(v) || 0), 0);
 }
@@ -103,12 +122,8 @@ export default function Produtos() {
     setFormAtacado(p.preco_atacado > 0 ? String(p.preco_atacado) : "");
     setFormDrop(p.preco_dropshipping > 0 ? String(p.preco_dropshipping) : "");
     setFormImage(p.image || "");
-    // Carregar tamanhos existentes do produto
-    const tam: Record<string, string> = {};
-    Object.entries(p.tamanhos || {}).forEach(([k, v]) => {
-      tam[k] = String(v);
-    });
-    setFormTamanhos(tam);
+    // Carregar tamanhos existentes + garantir a grade da categoria (faixas p/ chinelo)
+    setFormTamanhos(mesclarGrade(p.category, p.tamanhos || {}));
   }
 
   function fecharModal() {
@@ -317,7 +332,7 @@ export default function Produtos() {
 
             <div style={s.fg}>
               <label style={s.label}>Categoria</label>
-              <input style={s.inputFull} value={formCategory} onChange={e => setFormCategory(e.target.value)} />
+              <input style={s.inputFull} value={formCategory} onChange={e => { const nova = e.target.value; setFormCategory(nova); setFormTamanhos(prev => mesclarGrade(nova, prev)); }} />
             </div>
 
             <div style={{ ...s.fg, ...s.formRow }}>
@@ -353,7 +368,7 @@ export default function Produtos() {
                 <div style={s.tamanhosGrid}>
                   {Object.keys(formTamanhos).map(tamanho => (
                     <div key={tamanho}>
-                      <label style={s.label}>Nr {tamanho}</label>
+                      <label style={s.label}>{tamanho.includes("/") ? tamanho : `Nr ${tamanho}`}</label>
                       <input
                         style={s.inputFull}
                         type="number"
