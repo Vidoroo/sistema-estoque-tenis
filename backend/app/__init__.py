@@ -23,6 +23,7 @@ def create_app():
     from app.routes.barcodes      import barcodes_bp
     from app.routes.pedidos       import pedidos_bp
     from app.routes.vendedor_auth import vendedor_auth_bp
+    from app.routes.relatorios    import relatorios_bp
 
     app.register_blueprint(auth_bp,          url_prefix="/api/auth")
     app.register_blueprint(users_bp,         url_prefix="/api/users")
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(barcodes_bp,      url_prefix="/api/barcodes")
     app.register_blueprint(pedidos_bp,       url_prefix="/api/pedidos")
     app.register_blueprint(vendedor_auth_bp, url_prefix="/api/vendedor-auth")
+    app.register_blueprint(relatorios_bp,    url_prefix="/api/relatorios")
 
     with app.app_context():
         db.create_all()

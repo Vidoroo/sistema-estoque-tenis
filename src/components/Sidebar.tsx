@@ -34,6 +34,7 @@ export default function Sidebar() {
     { path: '/vendedores', label: 'Vendedores' },
     { path: '/pedidos', label: 'Pedidos' },
     { path: '/vendas', label: 'Vendas' },
+    { path: '/relatorios', label: 'Relatórios' },
     { path: '/comissoes', label: 'Comissões' },
     { path: '/metas', label: 'Metas' },
     { path: '/devolucoes', label: 'Devoluções' },

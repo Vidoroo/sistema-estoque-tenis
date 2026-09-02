@@ -16,6 +16,7 @@ import Comissoes      from "./pages/Comissoes";
 import Metas          from "./pages/Metas";
 import Devolucoes     from "./pages/Devolucoes";
 import FluxoCaixa     from "./pages/FluxoCaixa";
+import Relatorios     from "./pages/Relatorios";
 
 // Portal do vendedor (rotas públicas com token)
 import VendedorLogin  from "./pages/VendedorLogin";
@@ -47,6 +48,7 @@ function App() {
           <Route path="/metas"             element={<Metas />} />
           <Route path="/devolucoes"        element={<Devolucoes />} />
           <Route path="/fluxo-caixa"       element={<FluxoCaixa />} />
+          <Route path="/relatorios"        element={<Relatorios />} />
         </Route>
       </Route>
     </Routes>
