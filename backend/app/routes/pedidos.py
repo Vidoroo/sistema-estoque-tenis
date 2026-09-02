@@ -2,7 +2,7 @@ from flask import Blueprint, request
 from app.extensions import db
 from app.models import (
     Pedido, PedidoItem, ProdutoBarcode, Product,
-    Cliente, Vendedor, StockHistory
+    Cliente, Vendedor, StockHistory, Venda, VendaItem
 )
 from app.utils.responses import success_response, error_response
 
@@ -50,10 +50,66 @@ def _pedido_to_dict(p: Pedido) -> dict:
     }
 
 
+def _gerar_venda_do_pedido(pedido: Pedido):
+    """
+    Gera a Venda (registro financeiro) correspondente a um pedido concluido.
+    NAO mexe no estoque: a baixa ja ocorreu na separacao (bipagem/baixa manual).
+    Idempotente: se o pedido ja tem venda, nao cria outra.
+    Copia cada PedidoItem -> VendaItem para que Devolucoes funcione.
+    """
+    # Guarda contra duplicacao (alem do UNIQUE no banco)
+    ja_existe = Venda.query.filter_by(pedido_id=pedido.id).first()
+    if ja_existe:
+        return ja_existe
+
+    # Comissao do vendedor sobre o valor BRUTO (sem desconto), igual ao portal
+    valor_total = 0.0   # liquido (com desconto) - o que o cliente paga
+    valor_bruto = 0.0   # sem desconto - base da comissao
+    itens_calc = []
+    for i in pedido.itens:
+        unit = float(i.unit_price) if getattr(i, "unit_price", None) is not None                else float(i.product.price or 0) if i.product else 0.0
+        desc = float(getattr(i, "desconto", 0) or 0)
+        bruto    = unit * i.quantity
+        subtotal = bruto * (1 - desc / 100)
+        valor_bruto += bruto
+        valor_total += subtotal
+        itens_calc.append((i, unit, desc, subtotal))
+
+    vendedor = pedido.vendedor
+    comissao_pct   = float(vendedor.percentual_comissao or 0) if vendedor else 0.0
+    valor_comissao = valor_bruto * (comissao_pct / 100)
+
+    venda = Venda(
+        cliente_id=pedido.cliente_id,
+        vendedor_id=pedido.vendedor_id,
+        valor_total=valor_total,
+        percentual_comissao=comissao_pct,
+        valor_comissao=valor_comissao,
+        observacoes=f"Gerada do Pedido #{pedido.id}",
+        pedido_id=pedido.id,
+    )
+    db.session.add(venda)
+    db.session.flush()  # garante venda.id p/ os itens
+
+    for (i, unit, desc, subtotal) in itens_calc:
+        db.session.add(VendaItem(
+            venda_id=venda.id,
+            product_id=i.product_id,
+            size=i.size,
+            quantity=i.quantity,
+            unit_price=unit,
+            desconto=desc,
+            subtotal=subtotal,
+        ))
+    # NAO desconta estoque aqui — ja foi na separacao do pedido.
+    return venda
+
+
 def _verificar_conclusao(pedido: Pedido):
-    """Marca pedido como Concluído se todos os itens foram separados."""
+    """Marca pedido como Concluído se todos os itens foram separados, e gera a venda."""
     if all(i.quantity_separada >= i.quantity for i in pedido.itens):
         pedido.status = "Concluído"
+        _gerar_venda_do_pedido(pedido)   # registro financeiro (idempotente, sem baixa de estoque)
         db.session.commit()
 
 
@@ -172,6 +228,10 @@ def atualizar_pedido(pedido_id):
         data = request.get_json()
         if "status" in data:
             pedido.status = data["status"]
+            # Se o pedido foi marcado como Concluido manualmente por aqui,
+            # gera a venda tambem (idempotente — nao duplica se ja existir).
+            if pedido.status == "Concluído":
+                _gerar_venda_do_pedido(pedido)
         if "observacoes" in data:
             pedido.observacoes = data["observacoes"] or None
 

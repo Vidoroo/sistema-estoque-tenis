@@ -99,6 +99,8 @@ class Venda(db.Model):
     observacoes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     comissao_paga = db.Column(db.Boolean, default=False)
+    # Liga a venda ao pedido que a originou (NULL = venda avulsa). UNIQUE = 1 venda por pedido.
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos.id"), nullable=True, unique=True)
 
     cliente = db.relationship("Cliente", backref="vendas")
     vendedor = db.relationship("Vendedor", backref="vendas")
