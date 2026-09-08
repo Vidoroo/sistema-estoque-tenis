@@ -92,6 +92,7 @@ def resumo_comissoes():
         data = []
         for v in vendedores:
             vendas = Venda.query.filter_by(vendedor_id=v.id).all()
+            total_vendido   = sum(float(vn.valor_total or 0) for vn in vendas)
             total_comissao  = sum(float(vn.valor_comissao or 0) for vn in vendas)
             comissao_paga   = sum(float(vn.valor_comissao or 0) for vn in vendas if vn.comissao_paga)
             comissao_pendente = total_comissao - comissao_paga
@@ -100,6 +101,7 @@ def resumo_comissoes():
                 "vendedor_id":        v.id,
                 "vendedor_nome":      v.nome,
                 "total_vendas":       len(vendas),
+                "total_vendido":      total_vendido,
                 "total_comissao":     total_comissao,
                 "comissao_paga":      comissao_paga,
                 "comissao_pendente":  comissao_pendente,

@@ -5,6 +5,7 @@ from app.models import (
     Cliente, Vendedor, StockHistory, Venda, VendaItem
 )
 from app.utils.responses import success_response, error_response
+from datetime import date
 
 pedidos_bp = Blueprint("pedidos", __name__)
 
@@ -120,6 +121,8 @@ def listar_pedidos():
         status      = request.args.get("status")
         cliente_id  = request.args.get("cliente_id")
         vendedor_id = request.args.get("vendedor_id")
+        mes         = request.args.get("mes", type=int)
+        ano         = request.args.get("ano", type=int)
 
         query = Pedido.query
         if status:
@@ -128,6 +131,10 @@ def listar_pedidos():
             query = query.filter(Pedido.cliente_id == int(cliente_id))
         if vendedor_id:
             query = query.filter(Pedido.vendedor_id == int(vendedor_id))
+        if mes and ano:
+            inicio = date(ano, mes, 1)
+            fim = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
+            query = query.filter(Pedido.created_at >= inicio, Pedido.created_at < fim)
 
         pedidos = query.order_by(Pedido.created_at.desc()).all()
         return success_response("Pedidos listados.", [_pedido_to_dict(p) for p in pedidos])

@@ -18,6 +18,7 @@ type Resumo = {
   vendedor_id: number;
   vendedor_nome: string;
   total_vendas: number;
+  total_vendido: number;
   total_comissao: number;
   comissao_paga: number;
   comissao_pendente: number;
@@ -136,7 +137,7 @@ export default function Comissoes() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  {["Vendedor", "Vendas", "Total", "Pago", "Pendente"].map(h => (
+                  {["Vendedor", "Vendas", "Total Vendido", "Total Comissão", "Pago", "Pendente"].map(h => (
                     <th key={h} style={s.th}>{h}</th>
                   ))}
                 </tr>
@@ -150,6 +151,7 @@ export default function Comissoes() {
                   >
                     <td style={s.td}><strong>{r.vendedor_nome}</strong></td>
                     <td style={s.td}>{r.total_vendas}</td>
+                    <td style={s.td}><strong>R$ {r.total_vendido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></td>
                     <td style={s.td}>R$ {r.total_comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td style={s.td}><span style={{ color: "#16a34a", fontWeight: 600 }}>R$ {r.comissao_paga.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></td>
                     <td style={s.td}><span style={{ color: "#a16207", fontWeight: 600 }}>R$ {r.comissao_pendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></td>

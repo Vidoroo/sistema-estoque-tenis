@@ -89,6 +89,9 @@ export default function Pedidos() {
   const [produtos,   setProdutos]   = useState<Produto[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [filtroStatus, setFiltroStatus] = useState("");
+  const _hoje = new Date();
+  const [filtroMes, setFiltroMes] = useState<string>(String(_hoje.getMonth() + 1)); // mes atual por padrao
+  const [filtroAno, setFiltroAno] = useState<string>(String(_hoje.getFullYear()));
 
   // Modal novo pedido
   const [modalNovo,      setModalNovo]      = useState(false);
@@ -119,7 +122,10 @@ export default function Pedidos() {
     setLoading(true);
     try {
       const [rP, rC, rV, rProd] = await Promise.all([
-        fetch(`${API_URL}/pedidos/${filtroStatus ? `?status=${filtroStatus}` : ""}`),
+        fetch(`${API_URL}/pedidos/?${new URLSearchParams({
+          ...(filtroStatus ? { status: filtroStatus } : {}),
+          ...(filtroMes && filtroAno ? { mes: filtroMes, ano: filtroAno } : {}),
+        }).toString()}`),
         fetch(`${API_URL}/clientes`),
         fetch(`${API_URL}/vendedores/`),
         fetch(`${API_URL}/products/`),
@@ -134,7 +140,7 @@ export default function Pedidos() {
     }
   };
 
-  useEffect(() => { carregar(); }, [filtroStatus]);
+  useEffect(() => { carregar(); }, [filtroStatus, filtroMes, filtroAno]);
 
   // ── Novo pedido ──────────────────────────────────────────────────────────────
   const produtoSelecionado = produtos.find(p => String(p.id) === formProdId);
@@ -334,7 +340,17 @@ export default function Pedidos() {
       <div style={s.card}>
         <div style={s.toolbar}>
           <h2 style={{ margin: 0, color: "#071633" }}>Lista de Pedidos</h2>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" as const }}>
+            <select style={s.select} value={filtroMes} onChange={e => setFiltroMes(e.target.value)}>
+              <option value="">Todos os meses</option>
+              {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+                .map((m, i) => (<option key={i} value={String(i + 1)}>{m}</option>))}
+            </select>
+            <select style={s.select} value={filtroAno} onChange={e => setFiltroAno(e.target.value)}>
+              {Array.from({ length: 5 }, (_, k) => _hoje.getFullYear() - k).map(a => (
+                <option key={a} value={String(a)}>{a}</option>
+              ))}
+            </select>
             <select style={s.select} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
               <option value="">Todos os status</option>
               {["Pendente", "Em Separação", "Concluído", "Cancelado"].map(st => (
