@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from app.extensions import db
-from app.models import Venda, Vendedor
+from app.models import Venda, Vendedor, VendaItem, Product
+from sqlalchemy import func
 from app.utils.responses import success_response, error_response
 from datetime import date, datetime, timedelta
 
@@ -114,6 +115,73 @@ def relatorio_vendas():
                 "total_comissao": total_comissao,
             },
             "por_vendedor":  por_vendedor_lista,
+        })
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
+# ── GET /api/relatorios/produtos ──────────────────────────────────────────────
+# Ranking de produtos mais vendidos no periodo.
+# Query: (mes+ano) | (data_inicio+data_fim) [+ vendedor_id opcional]
+# Agrupa por produto; retorna quantidade e valor, ordenado por quantidade desc.
+@relatorios_bp.route("/produtos", methods=["GET"])
+def relatorio_produtos():
+    try:
+        inicio, fim, rotulo = _intervalo_do_request()
+        if inicio is None:
+            return error_response(rotulo, 400)
+
+        vendedor_id = request.args.get("vendedor_id", type=int)
+
+        # JOIN venda_itens -> vendas p/ filtrar pelo periodo (a data esta na venda)
+        q = (
+            db.session.query(
+                VendaItem.product_id.label("product_id"),
+                func.coalesce(func.sum(VendaItem.quantity), 0).label("qtd"),
+                func.coalesce(func.sum(VendaItem.subtotal), 0).label("valor"),
+            )
+            .join(Venda, Venda.id == VendaItem.venda_id)
+            .filter(Venda.created_at >= inicio, Venda.created_at < fim)
+        )
+        if vendedor_id:
+            q = q.filter(Venda.vendedor_id == vendedor_id)
+
+        q = q.group_by(VendaItem.product_id)
+        linhas = q.all()
+
+        # Busca nome/codigo/categoria dos produtos de uma vez
+        ids = [r.product_id for r in linhas]
+        produtos = {}
+        if ids:
+            for p in Product.query.filter(Product.id.in_(ids)).all():
+                produtos[p.id] = p
+
+        ranking = []
+        for r in linhas:
+            prod = produtos.get(r.product_id)
+            ranking.append({
+                "product_id": r.product_id,
+                "produto":    prod.name if prod else f"#{r.product_id}",
+                "codigo":     prod.codigo if prod else None,
+                "categoria":  prod.category if prod else None,
+                "quantidade": int(r.qtd or 0),
+                "valor":      float(r.valor or 0),
+            })
+
+        # ordena por quantidade desc (o front pode reordenar por valor)
+        ranking.sort(key=lambda x: x["quantidade"], reverse=True)
+
+        total_itens = sum(x["quantidade"] for x in ranking)
+        total_valor = sum(x["valor"] for x in ranking)
+
+        return success_response("Ranking de produtos gerado.", {
+            "periodo":       rotulo,
+            "ranking":       ranking,
+            "resumo": {
+                "produtos_distintos": len(ranking),
+                "total_itens":        total_itens,
+                "total_valor":        total_valor,
+            },
         })
     except Exception as e:
         return error_response(str(e), 500)
