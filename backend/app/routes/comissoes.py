@@ -7,6 +7,29 @@ from datetime import datetime, date
 comissoes_bp = Blueprint("comissoes", __name__)
 
 
+def _intervalo_periodo():
+    """Resolve o periodo dos query params: (mes+ano) OU (data_inicio+data_fim).
+    Retorna (inicio, fim_exclusivo) como datetime, ou (None, None) se nao houver filtro."""
+    from datetime import datetime, timedelta
+    mes  = request.args.get("mes", type=int)
+    ano  = request.args.get("ano", type=int)
+    di   = request.args.get("data_inicio")
+    dfim = request.args.get("data_fim")
+
+    if di and dfim:
+        try:
+            inicio = datetime.strptime(di, "%Y-%m-%d")
+            fim = datetime.strptime(dfim, "%Y-%m-%d") + timedelta(days=1)
+            return inicio, fim
+        except ValueError:
+            return None, None
+    if mes and ano:
+        inicio = date(ano, mes, 1)
+        fim = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
+        return inicio, fim
+    return None, None
+
+
 # ── GET /api/comissoes/ ────────────────────────────────────────────────────────
 # Lista todas as comissões (derivadas das vendas)
 # Query params: vendedor_id, status (paga|pendente), mes, ano
@@ -15,8 +38,6 @@ def listar_comissoes():
     try:
         vendedor_id = request.args.get("vendedor_id")
         status      = request.args.get("status")        # "paga" | "pendente"
-        mes         = request.args.get("mes", type=int)
-        ano         = request.args.get("ano", type=int)
 
         query = Venda.query.filter(Venda.valor_comissao > 0)
 
@@ -28,16 +49,9 @@ def listar_comissoes():
         elif status == "pendente":
             query = query.filter(Venda.comissao_paga == False)
 
-        if mes and ano:
-            inicio = date(ano, mes, 1)
-            if mes == 12:
-                fim = date(ano + 1, 1, 1)
-            else:
-                fim = date(ano, mes + 1, 1)
-            query = query.filter(
-                Venda.created_at >= inicio,
-                Venda.created_at < fim
-            )
+        inicio, fim = _intervalo_periodo()
+        if inicio and fim:
+            query = query.filter(Venda.created_at >= inicio, Venda.created_at < fim)
 
         vendas = query.order_by(Venda.created_at.desc()).all()
 
@@ -88,10 +102,14 @@ def atualizar_status_comissao(venda_id):
 def resumo_comissoes():
     try:
         vendedores = Vendedor.query.filter_by(status="Ativo").all()
+        inicio, fim = _intervalo_periodo()
 
         data = []
         for v in vendedores:
-            vendas = Venda.query.filter_by(vendedor_id=v.id).all()
+            q = Venda.query.filter_by(vendedor_id=v.id)
+            if inicio and fim:
+                q = q.filter(Venda.created_at >= inicio, Venda.created_at < fim)
+            vendas = q.all()
             total_vendido   = sum(float(vn.valor_total or 0) for vn in vendas)
             total_comissao  = sum(float(vn.valor_comissao or 0) for vn in vendas)
             comissao_paga   = sum(float(vn.valor_comissao or 0) for vn in vendas if vn.comissao_paga)

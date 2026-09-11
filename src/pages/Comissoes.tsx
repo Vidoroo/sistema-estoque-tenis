@@ -60,17 +60,31 @@ export default function Comissoes() {
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroVendedor, setFiltroVendedor] = useState("");
   const [atualizando, setAtualizando] = useState<number | null>(null);
+  const _hoje = new Date();
+  const [modoData, setModoData] = useState<"mes" | "intervalo">("mes");
+  const [filtroMes, setFiltroMes] = useState<string>(String(_hoje.getMonth() + 1));
+  const [filtroAno, setFiltroAno] = useState<string>(String(_hoje.getFullYear()));
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   const carregar = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      // parametros de periodo (compartilhados pela lista e pelo resumo)
+      const periodo = new URLSearchParams();
+      if (modoData === "mes") {
+        if (filtroMes && filtroAno) { periodo.append("mes", filtroMes); periodo.append("ano", filtroAno); }
+      } else {
+        if (dataInicio && dataFim) { periodo.append("data_inicio", dataInicio); periodo.append("data_fim", dataFim); }
+      }
+
+      const params = new URLSearchParams(periodo);
       if (filtroStatus)   params.append("status", filtroStatus);
       if (filtroVendedor) params.append("vendedor_id", filtroVendedor);
 
       const [resC, resR] = await Promise.all([
-        fetch(`${API_URL}/comissoes/?${params}`),
-        fetch(`${API_URL}/comissoes/resumo`),
+        fetch(`${API_URL}/comissoes/?${params.toString()}`),
+        fetch(`${API_URL}/comissoes/resumo?${periodo.toString()}`),
       ]);
       const [jC, jR] = await Promise.all([resC.json(), resR.json()]);
       setComissoes(jC.data || []);
@@ -80,7 +94,7 @@ export default function Comissoes() {
     }
   };
 
-  useEffect(() => { carregar(); }, [filtroStatus, filtroVendedor]);
+  useEffect(() => { carregar(); }, [filtroStatus, filtroVendedor, modoData, filtroMes, filtroAno, dataInicio, dataFim]);
 
   const togglePagamento = async (vendaId: number, paga: boolean) => {
     setAtualizando(vendaId);
@@ -106,6 +120,53 @@ export default function Comissoes() {
     <div style={s.page}>
       <h1 style={s.title}>Comissões</h1>
       <p style={s.subtitle}>Controle das comissões por vendedor e status de pagamento.</p>
+
+      {/* Filtro de período */}
+      <div style={s.card}>
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+          <button
+            style={{ ...s.select, cursor: "pointer", fontWeight: 600, border: modoData === "mes" ? "1px solid #071633" : "1px solid #d1d5db", backgroundColor: modoData === "mes" ? "#071633" : "#fff", color: modoData === "mes" ? "#fff" : "#374151" }}
+            onClick={() => setModoData("mes")}
+          >Por mês</button>
+          <button
+            style={{ ...s.select, cursor: "pointer", fontWeight: 600, border: modoData === "intervalo" ? "1px solid #071633" : "1px solid #d1d5db", backgroundColor: modoData === "intervalo" ? "#071633" : "#fff", color: modoData === "intervalo" ? "#fff" : "#374151" }}
+            onClick={() => setModoData("intervalo")}
+          >Por intervalo de datas</button>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "12px", alignItems: "flex-end" }}>
+          {modoData === "mes" ? (
+            <>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Mês</label>
+                <select style={s.select} value={filtroMes} onChange={e => setFiltroMes(e.target.value)}>
+                  <option value="">Todos os meses</option>
+                  {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+                    .map((m, i) => (<option key={i} value={String(i + 1)}>{m}</option>))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Ano</label>
+                <select style={s.select} value={filtroAno} onChange={e => setFiltroAno(e.target.value)}>
+                  {Array.from({ length: 5 }, (_, k) => _hoje.getFullYear() - k).map(a => (
+                    <option key={a} value={String(a)}>{a}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>De</label>
+                <input type="date" style={s.select} value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Até</label>
+                <input type="date" style={s.select} value={dataFim} onChange={e => setDataFim(e.target.value)} />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Cards */}
       <div style={s.grid}>
