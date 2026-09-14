@@ -36,11 +36,12 @@ const GRADE_CHINELO: string[] = [
 ];
 const GRADE_TENIS_INF: string[] = ["13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34"];
 const GRADE_SAND_INF: string[] = ["25/26","27/28","29/30","31/32","33/34","35/36"];
+const GRADE_CHINELO_INF: string[] = ["16/17","18/19","20/21","22/23","24/25","26/27","28/29","30/31","32/33","34/35","36/37","38/39","40/41","42/43","44/45"];
 const GRADE_ROUPA: string[] = ["P","M","G","GG","XG","G1","G2","G3","G4"];
 const GRADE_UNICO: string[] = ["UN"];
 
 // Categorias validas do sistema (lista fechada — evita categorias digitadas erradas)
-const CATEGORIAS: string[] = ["Tênis", "Tênis infantil", "Chinelo", "Sandália infantil", "Óculos", "Boné", "Bermuda", "Camiseta", "Calça", "Acessório", "Roupa"];
+const CATEGORIAS: string[] = ["Tênis", "Tênis infantil", "Chinelo", "Chinelo infantil", "Sandália infantil", "Óculos", "Boné", "Bermuda", "Camiseta", "Calça", "Acessório", "Roupa"];
 
 // Grade de tamanhos por categoria (chave em minusculo)
 const GRADES_POR_CATEGORIA: Record<string, string[]> = {
@@ -53,6 +54,7 @@ const GRADES_POR_CATEGORIA: Record<string, string[]> = {
   "tenis infantil": GRADE_TENIS_INF,
   "sandália infantil": GRADE_SAND_INF,
   "sandalia infantil": GRADE_SAND_INF,
+  "chinelo infantil": GRADE_CHINELO_INF,
   "camiseta":  GRADE_ROUPA,
   "bermuda":   GRADE_ROUPA,
   "roupa":     GRADE_ROUPA,
