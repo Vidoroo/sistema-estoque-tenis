@@ -5,7 +5,6 @@ from app.models import (
     Cliente, Vendedor, StockHistory, Venda, VendaItem
 )
 from app.utils.responses import success_response, error_response
-from datetime import date
 
 pedidos_bp = Blueprint("pedidos", __name__)
 
@@ -121,8 +120,6 @@ def listar_pedidos():
         status      = request.args.get("status")
         cliente_id  = request.args.get("cliente_id")
         vendedor_id = request.args.get("vendedor_id")
-        mes         = request.args.get("mes", type=int)
-        ano         = request.args.get("ano", type=int)
 
         query = Pedido.query
         if status:
@@ -131,10 +128,6 @@ def listar_pedidos():
             query = query.filter(Pedido.cliente_id == int(cliente_id))
         if vendedor_id:
             query = query.filter(Pedido.vendedor_id == int(vendedor_id))
-        if mes and ano:
-            inicio = date(ano, mes, 1)
-            fim = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
-            query = query.filter(Pedido.created_at >= inicio, Pedido.created_at < fim)
 
         pedidos = query.order_by(Pedido.created_at.desc()).all()
         return success_response("Pedidos listados.", [_pedido_to_dict(p) for p in pedidos])
@@ -256,8 +249,33 @@ def excluir_pedido(pedido_id):
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
             return error_response("Pedido não encontrado.", 404)
+        # Concluído já virou Venda (financeiro): não pode ser excluído por aqui.
         if pedido.status == "Concluído":
             return error_response("Não é possível excluir um pedido concluído.", 400)
+
+        # Restaura ao estoque tudo que já havia sido separado neste pedido.
+        # A separação (bipagem/manual) descontou do estoque; ao excluir, devolve —
+        # caso contrário o estoque ficaria menor do que a realidade.
+        for item in pedido.itens:
+            sep = int(item.quantity_separada or 0)
+            if sep > 0 and item.product:
+                product  = item.product
+                tamanhos = dict(product.tamanhos or {})
+                atual    = int(tamanhos.get(item.size, 0) or 0)
+                tamanhos[item.size] = str(atual + sep)
+                product.tamanhos = tamanhos
+                product.quantity = sum(int(v or 0) for v in tamanhos.values())
+
+                db.session.add(StockHistory(
+                    product_id=product.id,
+                    movement_type="estorno_pedido",
+                    quantity=sep,
+                    size=item.size,
+                    description=f"Estorno da exclusão do Pedido #{pedido_id}",
+                ))
+
+            # Remove o item explicitamente (evita órfão/erro de FK ao apagar o pedido).
+            db.session.delete(item)
 
         db.session.delete(pedido)
         db.session.commit()

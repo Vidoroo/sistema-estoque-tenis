@@ -89,9 +89,6 @@ export default function Pedidos() {
   const [produtos,   setProdutos]   = useState<Produto[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [filtroStatus, setFiltroStatus] = useState("");
-  const _hoje = new Date();
-  const [filtroMes, setFiltroMes] = useState<string>(String(_hoje.getMonth() + 1)); // mes atual por padrao
-  const [filtroAno, setFiltroAno] = useState<string>(String(_hoje.getFullYear()));
 
   // Modal novo pedido
   const [modalNovo,      setModalNovo]      = useState(false);
@@ -105,6 +102,7 @@ export default function Pedidos() {
   const [formPreco,      setFormPreco]      = useState(0);   // valor unitário editável
   const [formFaixa,      setFormFaixa]      = useState<Faixa>("varejo"); // faixa de preço padrão
   const [formDesc,       setFormDesc]       = useState(0);   // desconto % do item
+  const [editandoId,     setEditandoId]     = useState<number | null>(null); // id do pedido em edicao (null = novo)
   const [buscaProduto,   setBuscaProduto]   = useState("");  // termo da busca (lupa)
   const [salvando,       setSalvando]       = useState(false);
 
@@ -122,10 +120,7 @@ export default function Pedidos() {
     setLoading(true);
     try {
       const [rP, rC, rV, rProd] = await Promise.all([
-        fetch(`${API_URL}/pedidos/?${new URLSearchParams({
-          ...(filtroStatus ? { status: filtroStatus } : {}),
-          ...(filtroMes && filtroAno ? { mes: filtroMes, ano: filtroAno } : {}),
-        }).toString()}`),
+        fetch(`${API_URL}/pedidos/${filtroStatus ? `?status=${filtroStatus}` : ""}`),
         fetch(`${API_URL}/clientes`),
         fetch(`${API_URL}/vendedores/`),
         fetch(`${API_URL}/products/`),
@@ -140,7 +135,7 @@ export default function Pedidos() {
     }
   };
 
-  useEffect(() => { carregar(); }, [filtroStatus, filtroMes, filtroAno]);
+  useEffect(() => { carregar(); }, [filtroStatus]);
 
   // ── Novo pedido ──────────────────────────────────────────────────────────────
   const produtoSelecionado = produtos.find(p => String(p.id) === formProdId);
@@ -237,7 +232,18 @@ export default function Pedidos() {
       });
       const json = await res.json();
       if (!res.ok) { alert(json.message || "Erro."); return; }
-      setModalNovo(false);
+
+      // Se estava EDITANDO: o pedido corrigido ja foi criado acima; agora exclui o antigo.
+      // O backend devolve ao estoque o que ja tinha sido separado no pedido antigo.
+      if (editandoId) {
+        const del = await fetch(`${API_URL}/pedidos/${editandoId}`, { method: "DELETE" });
+        if (!del.ok) {
+          const dj = await del.json().catch(() => ({}));
+          alert(`O pedido corrigido foi criado, mas nao foi possivel excluir o antigo (#${editandoId}). ${dj.message || ""}`);
+        }
+      }
+
+      setModalNovo(false); setEditandoId(null);
       setFormClienteId(""); setFormVendedorId(""); setFormObs(""); setFormItens([]);
       setFormProdId(""); setFormSize(""); setFormQty(1);
       setFormPreco(0); setFormDesc(0); setFormFaixa("varejo"); setBuscaProduto("");
@@ -248,6 +254,37 @@ export default function Pedidos() {
   };
 
   // ── Separação ────────────────────────────────────────────────────────────────
+  // ── Editar (refaz o pedido do zero, pre-preenchido) ─────────────────────────
+  const abrirEdicao = async (p: Pedido) => {
+    if (p.total_separados > 0 &&
+        !confirm(`Este pedido ja teve ${p.total_separados} item(ns) separado(s). ` +
+                 `Ao editar, ele sera refeito e o que foi separado volta ao estoque. Continuar?`)) {
+      return;
+    }
+    // Busca o pedido completo (traz cliente_id, vendedor_id e itens com preco/desconto)
+    const res  = await fetch(`${API_URL}/pedidos/${p.id}`);
+    const json = await res.json();
+    if (!res.ok || !json.data) { alert("Nao foi possivel carregar o pedido para edicao."); return; }
+    const ped = json.data;
+
+    setEditandoId(ped.id);
+    setFormClienteId(String(ped.cliente_id));
+    setFormVendedorId(String(ped.vendedor_id));
+    setFormObs(ped.observacoes || "");
+    setFormItens((ped.itens || []).map((i: any) => ({
+      product_id: i.product_id,
+      size:       i.size,
+      quantity:   i.quantity,
+      nome:       i.product_name,
+      unit_price: Number(i.unit_price || 0),
+      desconto:   Number(i.desconto || 0),
+    })));
+    // limpa os campos de "adicionar item"
+    setFormProdId(""); setFormSize(""); setFormQty(1);
+    setFormPreco(0); setFormDesc(0); setFormFaixa("varejo"); setBuscaProduto("");
+    setModalNovo(true);
+  };
+
   const abrirSeparacao = async (id: number) => {
     const res  = await fetch(`${API_URL}/pedidos/${id}`);
     const json = await res.json();
@@ -340,24 +377,20 @@ export default function Pedidos() {
       <div style={s.card}>
         <div style={s.toolbar}>
           <h2 style={{ margin: 0, color: "#071633" }}>Lista de Pedidos</h2>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" as const }}>
-            <select style={s.select} value={filtroMes} onChange={e => setFiltroMes(e.target.value)}>
-              <option value="">Todos os meses</option>
-              {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
-                .map((m, i) => (<option key={i} value={String(i + 1)}>{m}</option>))}
-            </select>
-            <select style={s.select} value={filtroAno} onChange={e => setFiltroAno(e.target.value)}>
-              {Array.from({ length: 5 }, (_, k) => _hoje.getFullYear() - k).map(a => (
-                <option key={a} value={String(a)}>{a}</option>
-              ))}
-            </select>
+          <div style={{ display: "flex", gap: "10px" }}>
             <select style={s.select} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
               <option value="">Todos os status</option>
               {["Pendente", "Em Separação", "Concluído", "Cancelado"].map(st => (
                 <option key={st} value={st}>{st}</option>
               ))}
             </select>
-            <button style={s.btnPrimary} onClick={() => setModalNovo(true)}>+ Novo Pedido</button>
+            <button style={s.btnPrimary} onClick={() => {
+              setEditandoId(null);
+              setFormClienteId(""); setFormVendedorId(""); setFormObs(""); setFormItens([]);
+              setFormProdId(""); setFormSize(""); setFormQty(1);
+              setFormPreco(0); setFormDesc(0); setFormFaixa("varejo"); setBuscaProduto("");
+              setModalNovo(true);
+            }}>+ Novo Pedido</button>
           </div>
         </div>
 
@@ -407,6 +440,14 @@ export default function Pedidos() {
                             📦 Separar
                           </button>
                         )}
+                        {(p.status === "Pendente" || p.status === "Em Separação") && (
+                          <button
+                            style={{ ...s.btnPrimary, padding: "5px 10px", fontSize: "12px", backgroundColor: "#0891b2" }}
+                            onClick={() => abrirEdicao(p)}
+                          >
+                            ✏️ Editar
+                          </button>
+                        )}
                         <button
                           style={{ ...s.btnPrimary, padding: "5px 10px", fontSize: "12px", backgroundColor: "#7c3aed" }}
                           onClick={() => abrirPDF(p.id)}
@@ -428,9 +469,9 @@ export default function Pedidos() {
 
       {/* ── Modal novo pedido ── */}
       {modalNovo && (
-        <div style={s.overlay} onClick={() => setModalNovo(false)}>
+        <div style={s.overlay} onClick={() => { setModalNovo(false); setEditandoId(null); }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 20px", color: "#071633" }}>Novo Pedido</h2>
+            <h2 style={{ margin: "0 0 20px", color: "#071633" }}>{editandoId ? `Editar Pedido #${editandoId}` : "Novo Pedido"}</h2>
 
             <div style={s.row}>
               <div style={s.fg}>
@@ -668,9 +709,9 @@ export default function Pedidos() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button style={s.btnSecondary} onClick={() => setModalNovo(false)}>Cancelar</button>
+              <button style={s.btnSecondary} onClick={() => { setModalNovo(false); setEditandoId(null); }}>Cancelar</button>
               <button style={s.btnPrimary} onClick={criarPedido} disabled={salvando}>
-                {salvando ? "Salvando..." : "Criar Pedido"}
+                {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Criar Pedido"}
               </button>
             </div>
           </div>
